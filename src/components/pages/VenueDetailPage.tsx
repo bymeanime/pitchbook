@@ -197,41 +197,84 @@ export default function VenueDetailPage() {
       </Button>
 
       {/* Hero Banner */}
-      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-primary/15 to-primary/5 p-6 sm:p-10 mb-6">
-        <div className="flex flex-col lg:flex-row gap-6 items-start">
-          <div className="flex-1">
-            <div className="flex flex-wrap gap-2 mb-3">
-              {venueSports.map((s: string) => (
-                <Badge key={s} variant="secondary" className="capitalize">{s.replace('_', ' ')}</Badge>
-              ))}
-              {venue.isFeatured && <Badge className="bg-amber-500 text-white"><Award className="w-3 h-3 mr-1" /> Featured</Badge>}
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2">{venue.name}</h1>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-              <MapPin className="w-4 h-4" />
-              <span>{venue.address}, {venue.city}</span>
-            </div>
-            <div className="flex items-center gap-4 text-sm">
-              <div className="flex items-center gap-1">
-                <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                <span className="font-semibold">{venue.rating}</span>
-                <span className="text-muted-foreground">({venue.totalReviews} reviews)</span>
+      <div className="relative rounded-2xl overflow-hidden mb-6">
+        {(() => {
+          const imgs = JSON.parse(venue.images || '[]')
+          return imgs.length > 0 ? (
+            <div className="relative aspect-[21/9] sm:aspect-[3/1]">
+              <img src={imgs[0]} alt={venue.name} className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-10">
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {venueSports.map((s: string) => (
+                    <Badge key={s} variant="secondary" className="capitalize bg-white/90 text-foreground">{s.replace('_', ' ')}</Badge>
+                  ))}
+                  {venue.isFeatured && <Badge className="bg-amber-500 text-white"><Award className="w-3 h-3 mr-1" /> Featured</Badge>}
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-white">{venue.name}</h1>
+                <div className="flex items-center gap-2 text-sm text-white/80 mb-1">
+                  <MapPin className="w-4 h-4" />
+                  <span>{venue.address}, {venue.city}</span>
+                </div>
+                <div className="flex items-center gap-4 text-sm text-white/80">
+                  <div className="flex items-center gap-1">
+                    <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                    <span className="font-semibold text-white">{venue.rating}</span>
+                    <span>({venue.totalReviews} reviews)</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Calendar className="w-4 h-4" />
+                    <span>{venue._count?.bookings || 0} bookings</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <Calendar className="w-4 h-4" />
-                <span>{venue._count?.bookings || 0} bookings</span>
+            </div>
+          ) : (
+            <div className="bg-gradient-to-br from-primary/15 to-primary/5 p-6 sm:p-10">
+              <div className="flex flex-col lg:flex-row gap-6 items-start">
+                <div className="flex-1">
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {venueSports.map((s: string) => (
+                      <Badge key={s} variant="secondary" className="capitalize">{s.replace('_', ' ')}</Badge>
+                    ))}
+                    {venue.isFeatured && <Badge className="bg-amber-500 text-white"><Award className="w-3 h-3 mr-1" /> Featured</Badge>}
+                  </div>
+                  <h1 className="text-2xl sm:text-3xl font-bold mb-2">{venue.name}</h1>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+                    <MapPin className="w-4 h-4" />
+                    <span>{venue.address}, {venue.city}</span>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-1">
+                      <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                      <span className="font-semibold">{venue.rating}</span>
+                      <span className="text-muted-foreground">({venue.totalReviews} reviews)</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <Calendar className="w-4 h-4" />
+                      <span>{venue._count?.bookings || 0} bookings</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 lg:items-end shrink-0">
+                  {venue.phone && (
+                    <div className="flex items-center gap-2 text-sm"><Phone className="w-4 h-4 text-primary" /> {venue.phone}</div>
+                  )}
+                  {venue.email && (
+                    <div className="flex items-center gap-2 text-sm"><Mail className="w-4 h-4 text-primary" /> {venue.email}</div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-          <div className="flex flex-col gap-2 lg:items-end shrink-0">
-            {venue.phone && (
-              <div className="flex items-center gap-2 text-sm"><Phone className="w-4 h-4 text-primary" /> {venue.phone}</div>
-            )}
-            {venue.email && (
-              <div className="flex items-center gap-2 text-sm"><Mail className="w-4 h-4 text-primary" /> {venue.email}</div>
-            )}
-          </div>
-        </div>
+          )
+        })()}
+      </div>
+
+      {/* Contact info bar */}
+      <div className="flex flex-wrap items-center gap-4 mb-6 text-sm text-muted-foreground">
+        {venue.phone && <span className="flex items-center gap-1"><Phone className="w-4 h-4 text-primary" /> {venue.phone}</span>}
+        {venue.email && <span className="flex items-center gap-1"><Mail className="w-4 h-4 text-primary" /> {venue.email}</span>}
+        {venue.website && <span className="flex items-center gap-1"><Globe className="w-4 h-4 text-primary" /> {venue.website}</span>}
       </div>
 
       {/* Tabs */}

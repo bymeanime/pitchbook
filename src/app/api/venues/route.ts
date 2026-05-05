@@ -9,7 +9,7 @@ export async function GET() {
       include: {
         owner: { select: { id: true, name: true } },
         courts: { select: { id: true, name: true, sport: true, pricePerHour: true, isIndoor: true } },
-        _count: { select: { reviews: true, bookings: true, tournaments: true } }
+        _count: { select: { reviews: true, tournaments: true } }
       },
       orderBy: { createdAt: 'desc' }
     })

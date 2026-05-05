@@ -98,7 +98,7 @@ export default function LoginPage() {
             <p className="text-xs text-center text-muted-foreground mb-3">Quick Login (Demo Accounts)</p>
             <div className="grid grid-cols-1 gap-2">
               {[
-                { email: 'player123@email.com', password: 'player123', label: 'Player', desc: 'John Doe' },
+                { email: 'john.doe@email.com', password: 'player123', label: 'Player', desc: 'John Doe' },
                 { email: 'arena@pitchbook.com', password: 'owner123', label: 'Venue Owner', desc: 'Arena Sports' },
                 { email: 'admin@pitchbook.com', password: 'admin123', label: 'Admin', desc: 'Platform Admin' },
               ].map(({ email: demoEmail, password: demoPass, label, desc }) => (

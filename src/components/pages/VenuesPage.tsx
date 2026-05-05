@@ -167,9 +167,16 @@ export default function VenuesPage() {
                 className="overflow-hidden hover:shadow-lg transition-all cursor-pointer group border hover:border-primary/20"
                 onClick={() => openVenue(venue.id)}
               >
-                <div className="aspect-[16/9] bg-gradient-to-br from-primary/15 to-primary/5 relative flex items-center justify-center">
-                  <span className="text-6xl">🏟️</span>
-                  <div className="absolute top-3 right-3 flex gap-1 flex-wrap justify-end">
+                {(() => {
+                  const imgs = JSON.parse(venue.images || '[]')
+                  return (
+                    <div className="aspect-[16/9] relative overflow-hidden bg-gradient-to-br from-primary/15 to-primary/5">
+                      {imgs.length > 0 ? (
+                        <img src={imgs[0]} alt={venue.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center"><span className="text-6xl">🏟️</span></div>
+                      )}
+                      <div className="absolute top-3 right-3 flex gap-1 flex-wrap justify-end">
                     {venueSports.slice(0, 3).map((s: string) => (
                       <Badge key={s} variant="secondary" className="text-[10px] capitalize bg-background/80 backdrop-blur-sm">
                         {s.replace('_', ' ')}
@@ -189,6 +196,8 @@ export default function VenuesPage() {
                     ))}
                   </div>
                 </div>
+                    )
+                  })()}
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-1">
                     <h3 className="font-semibold text-sm group-hover:text-primary transition-colors line-clamp-1">

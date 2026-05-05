@@ -7,6 +7,7 @@ export type Page =
   | 'tournaments'
   | 'tournament-detail'
   | 'my-bookings'
+  | 'profile'
   | 'owner-dashboard'
   | 'admin-dashboard'
   | 'login'

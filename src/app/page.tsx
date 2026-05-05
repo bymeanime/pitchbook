@@ -8,6 +8,7 @@ import VenuesPage from '@/components/pages/VenuesPage'
 import VenueDetailPage from '@/components/pages/VenueDetailPage'
 import TournamentsPage, { TournamentDetailPage } from '@/components/pages/TournamentsPage'
 import MyBookingsPage from '@/components/pages/MyBookingsPage'
+import ProfilePage from '@/components/pages/ProfilePage'
 import OwnerDashboard from '@/components/pages/OwnerDashboard'
 import AdminDashboard from '@/components/pages/AdminDashboard'
 import LoginPage from '@/components/pages/LoginPage'
@@ -39,6 +40,7 @@ export default function App() {
       case 'tournaments': return <TournamentsPage />
       case 'tournament-detail': return <TournamentDetailPage />
       case 'my-bookings': return <MyBookingsPage />
+      case 'profile': return <ProfilePage />
       case 'owner-dashboard': return <OwnerDashboard />
       case 'admin-dashboard': return <AdminDashboard />
       case 'login': return <LoginPage />

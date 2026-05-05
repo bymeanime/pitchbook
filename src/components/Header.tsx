@@ -4,7 +4,7 @@ import { useAppStore } from '@/store/useAppStore'
 import { Button } from '@/components/ui/button'
 import {
   Menu, X, Home, Search, Trophy, Calendar, LayoutDashboard, Shield,
-  LogIn, UserPlus, LogOut, ChevronDown
+  LogIn, UserPlus, LogOut, ChevronDown, User
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import {
@@ -70,7 +70,16 @@ export default function Header() {
                   className="gap-2"
                 >
                   <Calendar className="w-4 h-4" />
-                  My Bookings
+                  <span className="hidden lg:inline">My Bookings</span>
+                </Button>
+                <Button
+                  variant={currentPage === 'profile' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => navigate('profile')}
+                  className="gap-2"
+                >
+                  <User className="w-4 h-4" />
+                  <span className="hidden lg:inline">Profile</span>
                 </Button>
                 {(user.role === 'venue_owner' || user.role === 'admin') && (
                   <Button
@@ -122,6 +131,9 @@ export default function Header() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate('my-bookings')}>
                     <Calendar className="w-4 h-4 mr-2" /> My Bookings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('profile')}>
+                    <User className="w-4 h-4 mr-2" /> My Profile
                   </DropdownMenuItem>
                   {(user.role === 'venue_owner' || user.role === 'admin') && (
                     <DropdownMenuItem onClick={() => navigate('owner-dashboard')}>
