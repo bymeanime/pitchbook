@@ -1,0 +1,214 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users ────────────────────────────────────────────────
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String    // hashed
+  name          String
+  phone         String?
+  avatar        String?
+  role          String    @default("player") // player, venue_owner, admin
+  isVerified    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  bookings          BookingMember[]
+  ownedVenues       Venue[]
+  reviews           Review[]
+  hostedTournaments Tournament[]
+  tournamentTeams   TournamentTeam[]
+}
+
+// ─── Venues ───────────────────────────────────────────────
+model Venue {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  address     String
+  city        String
+  latitude    Float?
+  longitude   Float?
+  phone       String?
+  email       String?
+  website     String?
+  images      String    @default("[]")  // JSON array of image URLs
+  amenities   String    @default("[]")  // JSON array: parking, wifi, showers, changing_rooms, cafe, etc.
+  sports      String    @default("[]")  // JSON array: futsal, basketball, badminton, tennis, cricket, etc.
+  rating      Float     @default(0)
+  totalReviews Int      @default(0)
+  isOpen      Boolean   @default(true)
+  isFeatured  Boolean   @default(false) // premium listing
+  commission  Float     @default(8.0)   // platform commission %
+  ownerId     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  owner    User     @relation(fields: [ownerId], references: [id])
+  courts   Court[]
+  reviews  Review[]
+  tournaments Tournament[]
+}
+
+// ─── Courts / Playable Areas ─────────────────────────────
+model Court {
+  id          String   @id @default(cuid())
+  name        String   // e.g. "Court A", "Pitch 1"
+  sport       String   // futsal, basketball, badminton, etc.
+  surface     String?  // artificial_turf, hardwood, clay, concrete
+  isIndoor    Boolean  @default(false)
+  pricePerHour Float   @default(0)
+  venueId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  venue       Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  timeSlots   TimeSlot[]
+  bookings    Booking[]
+}
+
+// ─── Time Slots (Venue-defined availability) ────────────
+model TimeSlot {
+  id        String   @id @default(cuid())
+  dayOfWeek Int      // 0=Sunday, 1=Monday, ..., 6=Saturday
+  startTime String   // "09:00"
+  endTime   String   // "10:00"
+  price     Float?   // override court price if set
+  isActive  Boolean  @default(true)
+  courtId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  court     Court    @relation(fields: [courtId], references: [id], onDelete: Cascade)
+}
+
+// ─── Bookings ────────────────────────────────────────────
+model Booking {
+  id            String    @id @default(cuid())
+  date          String    // "2025-01-15" format
+  startTime     String    // "09:00"
+  endTime       String    // "10:00"
+  status        String    @default("pending") // pending, confirmed, cancelled, completed
+  totalPrice    Float
+  platformFee   Float     // commission amount
+  notes         String?
+  courtId       String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  court         Court     @relation(fields: [courtId], references: [id])
+  members       BookingMember[]
+  payments      Payment[]
+}
+
+// ─── Booking Members (for split payments) ───────────────
+model BookingMember {
+  id        String   @id @default(cuid())
+  userId    String
+  bookingId String
+  amount    Float
+  status    String   @default("pending") // pending, paid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id])
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+// ─── Payments ────────────────────────────────────────────
+model Payment {
+  id            String    @id @default(cuid())
+  bookingId     String
+  amount        Float
+  method        String    @default("card") // card, cash, wallet
+  status        String    @default("pending") // pending, completed, failed, refunded
+  transactionId String?   // external payment gateway reference
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  booking       Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+// ─── Tournaments ─────────────────────────────────────────
+model Tournament {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  sport       String
+  format      String    @default("knockout") // knockout, league, round_robin
+  maxTeams    Int       @default(8)
+  entryFee    Float     @default(0)
+  prizePool   Float     @default(0)
+  startDate   String
+  endDate     String
+  status      String    @default("registration") // registration, ongoing, completed, cancelled
+  venueId     String
+  hostId      String
+  image       String?
+  rules       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  venue       Venue     @relation(fields: [venueId], references: [id])
+  host        User      @relation(fields: [hostId], references: [id])
+  teams       TournamentTeam[]
+  matches     TournamentMatch[]
+}
+
+// ─── Tournament Teams ────────────────────────────────────
+model TournamentTeam {
+  id           String   @id @default(cuid())
+  name         String
+  captainId    String
+  tournamentId String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  captain      User     @relation(fields: [captainId], references: [id])
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  matchesAsA   TournamentMatch[] @relation("MatchTeamA")
+  matchesAsB   TournamentMatch[] @relation("MatchTeamB")
+}
+
+// ─── Tournament Matches ─────────────────────────────────
+model TournamentMatch {
+  id            String   @id @default(cuid())
+  round         Int      @default(1)
+  matchNumber   Int
+  scheduledDate String
+  scheduledTime String
+  scoreA        Int?
+  scoreB        Int?
+  status        String   @default("scheduled") // scheduled, live, completed, cancelled
+  tournamentId  String
+  teamAId       String?
+  teamBId       String?
+  courtId       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tournament    Tournament     @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  teamA         TournamentTeam? @relation("MatchTeamA", fields: [teamAId], references: [id])
+  teamB         TournamentTeam? @relation("MatchTeamB", fields: [teamBId], references: [id])
+}
+
+// ─── Reviews ─────────────────────────────────────────────
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int      // 1-5
+  comment   String?
+  userId    String
+  venueId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id])
+  venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+}
