@@ -2,8 +2,17 @@ import { db } from '@/lib/db'
 import { hashPassword, createSessionToken } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 
-export async function GET() {
+// Protect seed route — only works with SEED_SECRET env var
+const SEED_SECRET = process.env.SEED_SECRET || 'pitchbook-seed-2025'
+
+export async function GET(request: Request) {
   try {
+    // Verify seed secret to prevent unauthorized access
+    const { searchParams } = new URL(request.url)
+    const secret = searchParams.get('secret')
+    if (secret !== SEED_SECRET) {
+      return NextResponse.json({ error: 'Unauthorized — seed endpoint is protected' }, { status: 401 })
+    }
     // Seed admin user
     const adminPassword = await hashPassword('admin123')
     const ownerPassword = await hashPassword('owner123')

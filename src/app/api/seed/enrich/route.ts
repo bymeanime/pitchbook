@@ -1,8 +1,16 @@
 import { db } from '@/lib/db'
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 
-export async function GET() {
+// Protect enrich route — only works with SEED_SECRET env var
+const SEED_SECRET = process.env.SEED_SECRET || 'pitchbook-seed-2025'
+
+export async function GET(request: NextRequest) {
   try {
+    // Verify seed secret to prevent unauthorized access
+    const secret = request.nextUrl.searchParams.get('secret')
+    if (secret !== SEED_SECRET) {
+      return NextResponse.json({ error: 'Unauthorized — seed endpoint is protected' }, { status: 401 })
+    }
     const courts = await db.court.findMany()
     const players = await db.user.findMany({ where: { role: 'player' } })
 

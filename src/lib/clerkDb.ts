@@ -1,20 +1,11 @@
-import { PrismaClient } from '@prisma/client'
-import { auth } from '@clerk/nextjs/server'
+// clerkDb.ts — re-export the singleton from db.ts to avoid duplicate Prisma instances
+export { db as clerkDb } from './db'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
+import { auth } from '@clerk/nextjs/server'
+import { db } from './db'
 
 export function getAuthenticatedDb() {
   const { userId } = auth()
   if (!userId) throw new Error('Unauthorized')
-
-  if (!globalForPrisma.prisma) {
-    globalForPrisma.prisma = new PrismaClient()
-  }
-  return globalForPrisma.prisma
+  return db
 }
-
-export const clerkDb = globalForPrisma.prisma ?? new PrismaClient()
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = clerkDb

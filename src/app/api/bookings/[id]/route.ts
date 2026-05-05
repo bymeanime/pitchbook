@@ -81,6 +81,19 @@ export async function DELETE(
     const session = parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
+    // Authorization: only booking member, venue owner, or admin can delete
+    const booking = await db.booking.findUnique({
+      where: { id },
+      include: { court: { include: { venue: true } }, members: true },
+    })
+    if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
+
+    const isMember = booking.members.some((m) => m.userId === session.userId)
+    const isOwner = booking.court.venue.ownerId === session.userId
+    if (!isMember && !isOwner && session.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     await db.payment.deleteMany({ where: { bookingId: id } })
     await db.bookingMember.deleteMany({ where: { bookingId: id } })
     await db.booking.delete({ where: { id } })

@@ -45,24 +45,32 @@ export default function ProfilePage() {
       fetch('/api/bookings', { headers: { 'Authorization': `Bearer ${token}` } })
         .then(r => r.json()).catch(() => []),
       fetch('/api/tournaments').then(r => r.json()).catch(() => []),
-    ]).then(([bookingsData, tournamentsData]) => {
+    ]).then(async ([bookingsData, tournamentsData]) => {
       const userBookings = Array.isArray(bookingsData) ? bookingsData : []
       setBookings(userBookings)
 
-      // Find teams this user is captain of
+      // Find teams this user is captain of — await all tournament detail fetches
       const userTeams: TournamentTeam[] = []
       if (Array.isArray(tournamentsData)) {
-        for (const t of tournamentsData) {
-          const res = fetch(`/api/tournaments/${t.id}`)
-            .then(r => r.json())
-            .then(data => {
-              if (data.teams) {
-                const myTeams = data.teams.filter((team: any) => team.captainId === user?.id)
-                for (const team of myTeams) {
-                  userTeams.push({ id: team.id, name: team.name, tournament: { id: t.id, name: t.name, sport: t.sport, status: t.status, startDate: t.startDate } })
-                }
-              }
-            })
+        const teamPromises = tournamentsData.map(async (t: any) => {
+          try {
+            const res = await fetch(`/api/tournaments/${t.id}`)
+            const data = await res.json()
+            if (data.teams) {
+              const myTeams = data.teams.filter((team: any) => team.captainId === user?.id)
+              return myTeams.map((team: any) => ({
+                id: team.id,
+                name: team.name,
+                tournament: { id: t.id, name: t.name, sport: t.sport, status: t.status, startDate: t.startDate }
+              }))
+            }
+          } catch { /* skip failed fetches */ }
+          return []
+        })
+
+        const results = await Promise.all(teamPromises)
+        for (const teams of results) {
+          userTeams.push(...teams)
         }
       }
 
