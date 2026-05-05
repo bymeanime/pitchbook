@@ -22,7 +22,8 @@ export async function sendBookingConfirmation(props: BookingEmailProps) {
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'PitchBook <noreply@pitchbook.com>',
+      from: 'PitchBook <onboarding@resend.dev>',
+      replyTo: 'bymeanime@gmail.com',
       to: [props.to],
       subject: `Booking Confirmed: ${props.venueName} - ${props.courtName}`,
       html: `
@@ -105,7 +106,8 @@ export async function sendTournamentRegistration(props: TournamentEmailProps) {
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'PitchBook <noreply@pitchbook.com>',
+      from: 'PitchBook <onboarding@resend.dev>',
+      replyTo: 'bymeanime@gmail.com',
       to: [props.to],
       subject: `Tournament Registration: ${props.tournamentName}`,
       html: `
