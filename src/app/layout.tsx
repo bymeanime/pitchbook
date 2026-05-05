@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
+import AppClerkProvider from "@/components/ClerkProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -46,33 +47,22 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        <AnalyticsProvider />
-        {children}
-        <Toaster />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              try {
-                const u = localStorage.getItem('pb_user');
-                const t = localStorage.getItem('pb_token');
-                if (u && t) {
-                  window.__PB_AUTH = { user: JSON.parse(u), token: t };
+        <AppClerkProvider>
+          <AnalyticsProvider />
+          {children}
+          <Toaster />
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                if ('serviceWorker' in navigator) {
+                  window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/sw.js').catch(() => {});
+                  });
                 }
-              } catch(e) {}
-            `,
-          }}
-        />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                  navigator.serviceWorker.register('/sw.js').catch(() => {});
-                });
-              }
-            `,
-          }}
-        />
+              `,
+            }}
+          />
+        </AppClerkProvider>
       </body>
     </html>
   );
