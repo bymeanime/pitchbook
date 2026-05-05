@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider     = "postgresql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
 }
 
 // ─── Users ────────────────────────────────────────────────
@@ -69,7 +70,7 @@ model Court {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  venue       Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  venue       Venue    @relation(fields: [venueId], references: [id])
   timeSlots   TimeSlot[]
   bookings    Booking[]
 }
@@ -86,7 +87,7 @@ model TimeSlot {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  court     Court    @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  court     Court    @relation(fields: [courtId], references: [id])
 }
 
 // ─── Bookings ────────────────────────────────────────────
@@ -119,7 +120,7 @@ model BookingMember {
   updatedAt DateTime @updatedAt
 
   user      User     @relation(fields: [userId], references: [id])
-  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  booking   Booking  @relation(fields: [bookingId], references: [id])
 }
 
 // ─── Payments ────────────────────────────────────────────
@@ -133,7 +134,7 @@ model Payment {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  booking       Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  booking       Booking   @relation(fields: [bookingId], references: [id])
 }
 
 // ─── Tournaments ─────────────────────────────────────────
@@ -172,7 +173,7 @@ model TournamentTeam {
   updatedAt    DateTime @updatedAt
 
   captain      User     @relation(fields: [captainId], references: [id])
-  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
   matchesAsA   TournamentMatch[] @relation("MatchTeamA")
   matchesAsB   TournamentMatch[] @relation("MatchTeamB")
 }
@@ -194,7 +195,7 @@ model TournamentMatch {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  tournament    Tournament     @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  tournament    Tournament     @relation(fields: [tournamentId], references: [id])
   teamA         TournamentTeam? @relation("MatchTeamA", fields: [teamAId], references: [id])
   teamB         TournamentTeam? @relation("MatchTeamB", fields: [teamBId], references: [id])
 }
@@ -210,5 +211,5 @@ model Review {
   updatedAt DateTime @updatedAt
 
   user      User     @relation(fields: [userId], references: [id])
-  venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  venue     Venue    @relation(fields: [venueId], references: [id])
 }
