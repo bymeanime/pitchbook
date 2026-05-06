@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { useAppStore } from '@/store/useAppStore'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,11 +10,37 @@ import { useToast } from '@/hooks/use-toast'
 import {
   Shield, Users, Building2, Calendar, DollarSign, TrendingUp,
   Trophy, Star, BarChart3, Activity, Search, Eye, EyeOff,
-  CheckCircle, XCircle, AlertCircle, UserCog, ToggleLeft
+  CheckCircle, XCircle, AlertCircle, UserCog, RefreshCw
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
+// ── Error Boundary ──────────────────────────────────────────────
+interface EBProps { children: React.ReactNode }
+interface EBState { hasError: boolean; error: Error | null }
+class AdminErrorBoundary extends React.Component<EBProps, EBState> {
+  constructor(props: EBProps) { super(props); this.state = { hasError: false, error: null } }
+  static getDerivedStateFromError(error: Error) { return { hasError: true, error } }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="max-w-md mx-auto py-20 text-center px-4">
+          <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
+          <h2 className="text-lg font-semibold mb-2">Dashboard Error</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            {this.state.error?.message || 'Something went wrong loading the admin dashboard.'}
+          </p>
+          <Button onClick={() => this.setState({ hasError: false, error: null })} variant="outline">
+            <RefreshCw className="w-4 h-4 mr-2" /> Try Again
+          </Button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+// ── Types ──────────────────────────────────────────────────────
 interface AdminStats {
   totalUsers: number
   totalVenues: number
@@ -21,8 +48,8 @@ interface AdminStats {
   totalTournaments: number
   totalRevenue: number
   platformEarnings: number
-  recentBookings: any[]
-  topVenues: any[]
+  recentBookings?: any[]
+  topVenues?: any[]
 }
 
 interface AdminUser {
@@ -33,7 +60,7 @@ interface AdminUser {
   phone?: string
   isVerified: boolean
   createdAt: string
-  _count: { bookings: number; ownedVenues: number; reviews: number }
+  _count?: { bookings: number; ownedVenues: number; reviews: number }
 }
 
 interface AdminVenue {
@@ -45,8 +72,8 @@ interface AdminVenue {
   totalReviews: number
   isFeatured: boolean
   createdAt: string
-  owner: { id: string; name: string; email: string }
-  _count: { courts: number; bookings: number; reviews: number; tournaments: number }
+  owner?: { id: string; name: string; email: string }
+  _count?: { courts: number; bookings: number; reviews: number; tournaments: number }
 }
 
 interface AdminBooking {
@@ -58,8 +85,8 @@ interface AdminBooking {
   totalPrice: number
   platformFee: number
   createdAt: string
-  court: { id: string; name: string; venue: { id: string; name: string; city: string } }
-  members: { id: string; userId: string; amount: number; status: string; user: { id: string; name: string; email: string } }[]
+  court?: { id: string; name: string; venue?: { id: string; name: string; city: string } }
+  members?: { id: string; userId: string; amount: number; status: string; user?: { id: string; name: string; email: string } }[]
 }
 
 const statusConfig: Record<string, { color: string; icon: any }> = {
@@ -69,7 +96,8 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
   cancelled: { color: 'bg-red-100 text-red-800', icon: XCircle },
 }
 
-export default function AdminDashboard() {
+// ── Main Component ─────────────────────────────────────────────
+function AdminDashboardInner() {
   const { user, token } = useAppStore()
   const { toast } = useToast()
   const [stats, setStats] = useState<AdminStats | null>(null)
@@ -94,7 +122,7 @@ export default function AdminDashboard() {
       .catch((err) => {
         toast({ title: err.message || 'Failed to load stats', variant: 'destructive' })
       })
-  }, [isAdmin, token, toast])
+  }, [isAdmin, token])
 
   // Load users
   useEffect(() => {
@@ -106,7 +134,7 @@ export default function AdminDashboard() {
       })
       .then(data => setUsers(Array.isArray(data) ? data : []))
       .catch(() => toast({ title: 'Failed to load users', variant: 'destructive' }))
-  }, [isAdmin, token, toast])
+  }, [isAdmin, token])
 
   // Load venues
   useEffect(() => {
@@ -118,7 +146,7 @@ export default function AdminDashboard() {
       })
       .then(data => setVenues(Array.isArray(data) ? data : []))
       .catch(() => toast({ title: 'Failed to load venues', variant: 'destructive' }))
-  }, [isAdmin, token, toast])
+  }, [isAdmin, token])
 
   // Load all bookings
   useEffect(() => {
@@ -131,7 +159,7 @@ export default function AdminDashboard() {
       .then(data => setAllBookings(Array.isArray(data) ? data : []))
       .catch(() => toast({ title: 'Failed to load bookings', variant: 'destructive' }))
       .finally(() => setLoading(false))
-  }, [isAdmin, token, toast])
+  }, [isAdmin, token])
 
   // Toggle venue open/close
   const handleToggleVenue = async (venueId: string, isOpen: boolean) => {
@@ -197,6 +225,7 @@ export default function AdminDashboard() {
     }
   }
 
+  // ── Guard: not admin ──
   if (!user || user.role !== 'admin') {
     return (
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
@@ -207,7 +236,8 @@ export default function AdminDashboard() {
     )
   }
 
-  if (loading || !stats) {
+  // ── Guard: loading ──
+  if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="animate-pulse grid grid-cols-2 lg:grid-cols-3 gap-4">
@@ -219,9 +249,17 @@ export default function AdminDashboard() {
     )
   }
 
-  const filteredBookings = bookingFilter ? allBookings.filter(b => b.status === bookingFilter) : allBookings
+  // ── Derived data ──
+  const topVenues = Array.isArray(stats?.topVenues) ? stats.topVenues : []
+  const recentBookings = Array.isArray(stats?.recentBookings) ? stats.recentBookings : []
+  const filteredBookings = bookingFilter
+    ? allBookings.filter(b => b.status === bookingFilter)
+    : allBookings
   const filteredUsers = userSearch
-    ? users.filter(u => u.name.toLowerCase().includes(userSearch.toLowerCase()) || u.email.toLowerCase().includes(userSearch.toLowerCase()))
+    ? users.filter(u =>
+        (u.name || '').toLowerCase().includes(userSearch.toLowerCase()) ||
+        (u.email || '').toLowerCase().includes(userSearch.toLowerCase())
+      )
     : users
 
   return (
@@ -237,12 +275,12 @@ export default function AdminDashboard() {
       {/* Key Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
         {[
-          { label: 'Users', value: stats.totalUsers, icon: Users, color: 'text-blue-600 bg-blue-50' },
-          { label: 'Venues', value: stats.totalVenues, icon: Building2, color: 'text-purple-600 bg-purple-50' },
-          { label: 'Bookings', value: stats.totalBookings, icon: Calendar, color: 'text-emerald-600 bg-emerald-50' },
-          { label: 'Tournaments', value: stats.totalTournaments, icon: Trophy, color: 'text-amber-600 bg-amber-50' },
-          { label: 'Total GMV', value: `Rs ${(stats.totalRevenue / 1000).toFixed(0)}K`, icon: DollarSign, color: 'text-green-600 bg-green-50' },
-          { label: 'Platform Rev', value: `Rs ${(stats.platformEarnings / 1000).toFixed(0)}K`, icon: TrendingUp, color: 'text-orange-600 bg-orange-50' },
+          { label: 'Users', value: stats?.totalUsers ?? 0, icon: Users, color: 'text-blue-600 bg-blue-50' },
+          { label: 'Venues', value: stats?.totalVenues ?? 0, icon: Building2, color: 'text-purple-600 bg-purple-50' },
+          { label: 'Bookings', value: stats?.totalBookings ?? 0, icon: Calendar, color: 'text-emerald-600 bg-emerald-50' },
+          { label: 'Tournaments', value: stats?.totalTournaments ?? 0, icon: Trophy, color: 'text-amber-600 bg-amber-50' },
+          { label: 'Total GMV', value: `Rs ${((stats?.totalRevenue ?? 0) / 1000).toFixed(0)}K`, icon: DollarSign, color: 'text-green-600 bg-green-50' },
+          { label: 'Platform Rev', value: `Rs ${((stats?.platformEarnings ?? 0) / 1000).toFixed(0)}K`, icon: TrendingUp, color: 'text-orange-600 bg-orange-50' },
         ].map(({ label, value, icon: Icon, color }) => (
           <Card key={label}>
             <CardContent className="p-4 flex flex-col items-center text-center">
@@ -297,13 +335,13 @@ export default function AdminDashboard() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium">{booking.court?.name || 'Unknown'}</p>
+                            <p className="text-sm font-medium">{booking.court?.name || 'Unknown Court'}</p>
                             <Badge className={config.color} style={{ colorScheme: undefined }}>
                               <StatusIcon className="w-3 h-3 mr-1" /> <span className="capitalize">{booking.status}</span>
                             </Badge>
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            {booking.court?.venue?.name} • {booking.date} • {booking.startTime}-{booking.endTime}
+                            {booking.court?.venue?.name || 'Unknown Venue'} &bull; {booking.date} &bull; {booking.startTime}-{booking.endTime}
                           </p>
                           {booking.members?.[0]?.user?.name && (
                             <p className="text-xs text-muted-foreground">
@@ -355,17 +393,17 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <span className="text-sm font-bold text-primary">{u.name.charAt(0).toUpperCase()}</span>
+                        <span className="text-sm font-bold text-primary">{(u.name || '?').charAt(0).toUpperCase()}</span>
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium">{u.name}</p>
-                          <Badge variant="outline" className="text-[10px] capitalize">{u.role.replace('_', ' ')}</Badge>
+                          <p className="text-sm font-medium">{u.name || 'Unknown'}</p>
+                          <Badge variant="outline" className="text-[10px] capitalize">{(u.role || 'player').replace('_', ' ')}</Badge>
                           {u.isVerified && <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Verified</Badge>}
                         </div>
-                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                        <p className="text-xs text-muted-foreground">{u.email || ''}</p>
                         <p className="text-[10px] text-muted-foreground">
-                          {u._count.bookings} bookings • {u._count.ownedVenues} venues • {u._count.reviews} reviews
+                          {u._count?.bookings ?? 0} bookings &bull; {u._count?.ownedVenues ?? 0} venues &bull; {u._count?.reviews ?? 0} reviews
                         </p>
                       </div>
                     </div>
@@ -401,10 +439,12 @@ export default function AdminDashboard() {
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold">{venue.name}</h3>
+                        <h3 className="font-semibold">{venue.name || 'Unknown Venue'}</h3>
                         {venue.isFeatured && <Badge className="bg-amber-500 text-white text-[10px]">Featured</Badge>}
                       </div>
-                      <p className="text-xs text-muted-foreground">{venue.city} • Owner: {venue.owner.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {venue.city || ''} &bull; Owner: {venue.owner?.name || 'Unknown'}
+                      </p>
                     </div>
                     <Badge variant={venue.isOpen ? 'default' : 'secondary'} className="text-xs">
                       {venue.isOpen ? 'Open' : 'Closed'}
@@ -412,21 +452,21 @@ export default function AdminDashboard() {
                   </div>
                   <div className="grid grid-cols-4 gap-2 text-center mb-3">
                     <div className="p-2 rounded bg-muted/50">
-                      <p className="text-sm font-bold">{venue._count.courts}</p>
+                      <p className="text-sm font-bold">{venue._count?.courts ?? 0}</p>
                       <p className="text-[10px] text-muted-foreground">Courts</p>
                     </div>
                     <div className="p-2 rounded bg-muted/50">
-                      <p className="text-sm font-bold">{venue._count.bookings}</p>
+                      <p className="text-sm font-bold">{venue._count?.bookings ?? 0}</p>
                       <p className="text-[10px] text-muted-foreground">Bookings</p>
                     </div>
                     <div className="p-2 rounded bg-muted/50">
-                      <p className="text-sm font-bold">{venue._count.reviews}</p>
+                      <p className="text-sm font-bold">{venue._count?.reviews ?? 0}</p>
                       <p className="text-[10px] text-muted-foreground">Reviews</p>
                     </div>
                     <div className="p-2 rounded bg-muted/50">
                       <div className="flex items-center justify-center gap-0.5">
                         <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                        <p className="text-sm font-bold">{venue.rating}</p>
+                        <p className="text-sm font-bold">{venue.rating || 0}</p>
                       </div>
                     </div>
                   </div>
@@ -452,6 +492,9 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
             ))}
+            {venues.length === 0 && (
+              <p className="text-center text-muted-foreground py-8 col-span-2">No venues found</p>
+            )}
           </div>
         </TabsContent>
 
@@ -466,23 +509,25 @@ export default function AdminDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {stats.topVenues.map((venue: any, idx: number) => (
-                  <div key={venue.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                {topVenues.length > 0 ? topVenues.map((venue: any, idx: number) => (
+                  <div key={venue.id || idx} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-sm text-primary">
                         {idx + 1}
                       </div>
                       <div>
-                        <p className="text-sm font-medium">{venue.name}</p>
-                        <p className="text-xs text-muted-foreground">{venue.totalReviews} reviews</p>
+                        <p className="text-sm font-medium">{venue.name || 'Unknown'}</p>
+                        <p className="text-xs text-muted-foreground">{venue._count?.reviews || venue.totalReviews || 0} reviews</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
                       <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                      <span className="text-sm font-semibold">{venue.rating}</span>
+                      <span className="text-sm font-semibold">{venue.rating || 0}</span>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <p className="text-center text-muted-foreground py-4">No venue data yet</p>
+                )}
               </CardContent>
             </Card>
 
@@ -494,14 +539,14 @@ export default function AdminDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 max-h-80 overflow-y-auto">
-                {stats.recentBookings.map((booking: any) => (
+                {recentBookings.length > 0 ? recentBookings.map((booking: any) => (
                   <div key={booking.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <div>
                       <p className="text-sm font-medium">
-                        {booking.members?.[0]?.user?.name || 'User'} → {booking.court?.venue?.name}
+                        {booking.members?.[0]?.user?.name || 'User'} &rarr; {booking.court?.venue?.name || 'Venue'}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {booking.court?.name} • {booking.date} • {booking.startTime}-{booking.endTime}
+                        {booking.court?.name || 'Court'} &bull; {booking.date} &bull; {booking.startTime}-{booking.endTime}
                       </p>
                     </div>
                     <div className="text-right">
@@ -509,7 +554,9 @@ export default function AdminDashboard() {
                       <Badge variant="outline" className="text-[10px] capitalize">{booking.status}</Badge>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <p className="text-center text-muted-foreground py-4">No recent bookings</p>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -524,18 +571,18 @@ export default function AdminDashboard() {
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="p-5 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100/50 text-center">
-                  <p className="text-3xl font-bold text-emerald-700">Rs {stats.totalRevenue.toLocaleString()}</p>
+                  <p className="text-3xl font-bold text-emerald-700">Rs {(stats?.totalRevenue ?? 0).toLocaleString()}</p>
                   <p className="text-sm text-emerald-600 mt-1">Gross Merchandise Value</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Total booking value across platform</p>
                 </div>
                 <div className="p-5 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100/50 text-center">
-                  <p className="text-3xl font-bold text-amber-700">Rs {stats.platformEarnings.toLocaleString()}</p>
+                  <p className="text-3xl font-bold text-amber-700">Rs {(stats?.platformEarnings ?? 0).toLocaleString()}</p>
                   <p className="text-sm text-amber-600 mt-1">Platform Earnings (8%)</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Commission from bookings</p>
                 </div>
                 <div className="p-5 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 text-center">
                   <p className="text-3xl font-bold text-blue-700">
-                    {stats.totalBookings > 0 ? `Rs ${Math.round(stats.totalRevenue / stats.totalBookings).toLocaleString()}` : 'Rs 0'}
+                    {(stats?.totalBookings ?? 0) > 0 ? `Rs ${Math.round((stats?.totalRevenue ?? 0) / (stats?.totalBookings ?? 1)).toLocaleString()}` : 'Rs 0'}
                   </p>
                   <p className="text-sm text-blue-600 mt-1">Avg. Booking Value</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Revenue per booking</p>
@@ -546,5 +593,14 @@ export default function AdminDashboard() {
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+// ── Export with error boundary ──
+export default function AdminDashboard() {
+  return (
+    <AdminErrorBoundary>
+      <AdminDashboardInner />
+    </AdminErrorBoundary>
   )
 }

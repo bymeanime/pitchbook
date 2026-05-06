@@ -14,15 +14,16 @@ import AdminDashboard from '@/components/pages/AdminDashboard'
 import LoginPage from '@/components/pages/LoginPage'
 import RegisterPage from '@/components/pages/RegisterPage'
 import { useUser } from '@clerk/nextjs'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 export default function App() {
   const { currentPage, user, token, setAuth, navigate } = useAppStore()
-  const { isSignedIn, isLoaded } = useUser()
+  const { isSignedIn, isLoaded, user: clerkUser } = useUser()
+  const hasSyncedRef = useRef(false)
 
-  // Restore custom auth from localStorage on mount
+  // Restore custom auth from localStorage on mount (one-time only)
   useEffect(() => {
-    if (typeof window !== 'undefined' && !user) {
+    if (typeof window !== 'undefined') {
       try {
         const savedUser = localStorage.getItem('pb_user')
         const savedToken = localStorage.getItem('pb_token')
@@ -38,37 +39,52 @@ export default function App() {
   }, [])
 
   // Sync Clerk user to custom auth store
-  // This ensures that users who sign in via Clerk's UI can use
-  // features that depend on the custom auth (user/token) like booking, reviews, etc.
+  // CRITICAL: Always re-sync when Clerk is signed in, even if stale localStorage
+  // data exists with a wrong role. This ensures the DB role (admin/venue_owner)
+  // is always used instead of a previously-cached wrong role.
   useEffect(() => {
     if (!isLoaded) return // Wait for Clerk to finish loading
+    if (hasSyncedRef.current) return // Only sync once per mount
 
-    if (isSignedIn && !user) {
-      // Clerk user is signed in but no custom auth — sync them
+    if (isSignedIn) {
+      hasSyncedRef.current = true
+
+      // Always call clerk-sync when Clerk is signed in, regardless of stored user.
+      // The backend matches by email and returns the correct DB role.
       fetch('/api/auth/clerk-sync', { method: 'POST' })
         .then(res => {
-          if (!res.ok) throw new Error('Sync failed')
+          if (!res.ok) throw new Error(`Sync failed (${res.status})`)
           return res.json()
         })
         .then(data => {
-          setAuth(data.user, data.token)
-          // Auto-navigate to appropriate dashboard based on role
-          if (data.user.role === 'admin') navigate('admin-dashboard')
-          else if (data.user.role === 'venue_owner') navigate('owner-dashboard')
+          if (data.user && data.token) {
+            setAuth(data.user, data.token)
+            // Auto-navigate to appropriate dashboard based on role
+            if (data.user.role === 'admin') navigate('admin-dashboard')
+            else if (data.user.role === 'venue_owner') navigate('owner-dashboard')
+          }
         })
-        .catch(() => {
+        .catch((err) => {
+          console.error('Clerk sync failed:', err.message)
           // Sync failed — user can still browse but can't book
+          // Clear any stale auth data that might have wrong role
+          const clerkEmail = clerkUser?.emailAddresses?.[0]?.emailAddress
+          const storedEmail = user?.email
+          if (clerkEmail && storedEmail && clerkEmail !== storedEmail) {
+            // Different user signed in — clear old data
+            useAppStore.setState({ user: null, token: null })
+            localStorage.removeItem('pb_user')
+            localStorage.removeItem('pb_token')
+          }
         })
     } else if (!isSignedIn && user) {
       // Clerk user signed out — also clear custom auth
-      // (only if the stored user was a Clerk-synced one)
-      if (user.email?.includes('@pitchbook.local')) {
-        useAppStore.setState({ user: null, token: null, currentPage: 'home' })
-        localStorage.removeItem('pb_user')
-        localStorage.removeItem('pb_token')
-      }
+      useAppStore.setState({ user: null, token: null, currentPage: 'home' })
+      localStorage.removeItem('pb_user')
+      localStorage.removeItem('pb_token')
+      hasSyncedRef.current = false
     }
-  }, [isSignedIn, isLoaded, user, setAuth, navigate])
+  }, [isSignedIn, isLoaded]) // Intentionally minimal deps to avoid re-triggering
 
   const renderPage = () => {
     switch (currentPage) {
