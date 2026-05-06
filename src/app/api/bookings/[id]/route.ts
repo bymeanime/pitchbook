@@ -8,6 +8,12 @@ export async function GET(
 ) {
   try {
     const { id } = await params
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
+
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const session = parseSessionToken(token)
+    if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
+
     const booking = await db.booking.findUnique({
       where: { id },
       include: {

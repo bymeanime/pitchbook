@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import {
-  Search, MapPin, Star, Clock, Filter, X, SlidersHorizontal
+  Search, MapPin, Star, Clock, X
 } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 
@@ -38,6 +38,16 @@ export default function VenuesPage() {
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
 
+  const safeJsonParse = (str: string | null | undefined, fallback: any = []): any => {
+    if (!str) return fallback
+    try {
+      const parsed = JSON.parse(str)
+      return Array.isArray(parsed) ? parsed : fallback
+    } catch {
+      return fallback
+    }
+  }
+
   const fetchVenues = useCallback(async () => {
     setLoading(true)
     try {
@@ -47,6 +57,7 @@ export default function VenuesPage() {
       if (selectedCity) params.set('city', selectedCity)
 
       const res = await fetch(`/api/venues/search?${params.toString()}`)
+      if (!res.ok) throw new Error(`Failed to load venues (${res.status})`)
       const data = await res.json()
       setVenues(Array.isArray(data) ? data : [])
     } catch {
@@ -54,7 +65,7 @@ export default function VenuesPage() {
     } finally {
       setLoading(false)
     }
-  }, [searchQuery, selectedSport, selectedCity])
+  }, [searchQuery, selectedSport, selectedCity, toast])
 
   useEffect(() => { fetchVenues() }, [fetchVenues])
 
@@ -157,8 +168,8 @@ export default function VenuesPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {venues.map((venue) => {
-            const venueSports = JSON.parse(venue.sports || '[]')
-            const venueAmenities = JSON.parse(venue.amenities || '[]')
+            const venueSports: string[] = safeJsonParse(venue.sports)
+            const venueAmenities: string[] = safeJsonParse(venue.amenities)
             const minPrice = venue.courts.length > 0 ? Math.min(...venue.courts.map(c => c.pricePerHour)) : 0
             const maxPrice = venue.courts.length > 0 ? Math.max(...venue.courts.map(c => c.pricePerHour)) : 0
 
@@ -169,7 +180,7 @@ export default function VenuesPage() {
                 onClick={() => openVenue(venue.id)}
               >
                 {(() => {
-                  const imgs = JSON.parse(venue.images || '[]')
+                  const imgs: string[] = safeJsonParse(venue.images)
                   return (
                     <div className="aspect-[16/9] relative overflow-hidden bg-gradient-to-br from-primary/15 to-primary/5">
                       {imgs.length > 0 ? (

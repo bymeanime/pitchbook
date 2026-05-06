@@ -137,17 +137,6 @@ export default function RootLayout({
           <AnalyticsProvider />
           {children}
           <Toaster />
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-                if ('serviceWorker' in navigator) {
-                  window.addEventListener('load', () => {
-                    navigator.serviceWorker.register('/sw.js').catch(() => {});
-                  });
-                }
-              `,
-            }}
-          />
         </AppClerkProvider>
       </body>
     </html>

@@ -8,12 +8,15 @@ export async function GET(request: NextRequest) {
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const session = parseSessionToken(token)
-    if (!session || session.role !== 'venue_owner') {
+    if (!session || (session.role !== 'venue_owner' && session.role !== 'admin')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // Admin can see all venues; venue_owner sees only their own
+    const venueFilter = session.role === 'admin' ? {} : { ownerId: session.userId }
+
     const venues = await db.venue.findMany({
-      where: { ownerId: session.userId },
+      where: venueFilter,
       include: {
         courts: { include: { _count: { select: { bookings: true } } } },
         _count: { select: { reviews: true, tournaments: true } }

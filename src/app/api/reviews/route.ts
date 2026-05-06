@@ -52,12 +52,18 @@ export async function POST(request: NextRequest) {
       include: { user: { select: { id: true, name: true } } }
     })
 
-    // Update venue rating
-    const allReviews = await db.review.findMany({ where: { venueId } })
-    const avgRating = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
+    // Update venue rating using aggregate query for performance
+    const aggregate = await db.review.aggregate({
+      where: { venueId },
+      _avg: { rating: true },
+      _count: { rating: true },
+    })
     await db.venue.update({
       where: { id: venueId },
-      data: { rating: Math.round(avgRating * 10) / 10, totalReviews: allReviews.length }
+      data: {
+        rating: Math.round((aggregate._avg.rating || 0) * 10) / 10,
+        totalReviews: aggregate._count.rating,
+      }
     })
 
     return NextResponse.json(review, { status: 201 })

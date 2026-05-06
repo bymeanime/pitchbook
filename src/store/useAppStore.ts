@@ -105,12 +105,18 @@ export const useAppStore = create<AppState>((set) => ({
 
 // Initialize from localStorage
 if (typeof window !== 'undefined') {
-  const savedUser = localStorage.getItem('pb_user')
-  const savedToken = localStorage.getItem('pb_token')
-  if (savedUser && savedToken) {
-    useAppStore.setState({
-      user: JSON.parse(savedUser),
-      token: savedToken,
-    })
+  try {
+    const savedUser = localStorage.getItem('pb_user')
+    const savedToken = localStorage.getItem('pb_token')
+    if (savedUser && savedToken) {
+      useAppStore.setState({
+        user: JSON.parse(savedUser),
+        token: savedToken,
+      })
+    }
+  } catch {
+    // Invalid localStorage data — clear it
+    localStorage.removeItem('pb_user')
+    localStorage.removeItem('pb_token')
   }
 }

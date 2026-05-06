@@ -107,7 +107,7 @@ export default function VenueDetailPage() {
   }, [selectedVenueId])
 
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0]
+    const today = new Date().toLocaleDateString('en-CA')
     setSelectedDate(today)
   }, [])
 
@@ -123,8 +123,18 @@ export default function VenueDetailPage() {
     )
   }
 
-  const venueSports = JSON.parse(venue.sports || '[]')
-  const venueAmenities = JSON.parse(venue.amenities || '[]')
+  const safeJsonParse = (str: string | null | undefined, fallback: any = []): any => {
+    if (!str) return fallback
+    try {
+      const parsed = JSON.parse(str)
+      return Array.isArray(parsed) ? parsed : fallback
+    } catch {
+      return fallback
+    }
+  }
+
+  const venueSports: string[] = safeJsonParse(venue.sports)
+  const venueAmenities: string[] = safeJsonParse(venue.amenities)
 
   const getAvailableSlots = () => {
     if (!selectedCourt || !selectedDate) return []
@@ -184,8 +194,11 @@ export default function VenueDetailPage() {
       if (!res.ok) throw new Error((await res.json()).error || 'Review failed')
       toast({ title: 'Review submitted!' })
       // Reload venue
-      const data = await fetch(`/api/venues/${selectedVenueId}`).then(r => r.json())
-      setVenue(data)
+      const reloadRes = await fetch(`/api/venues/${selectedVenueId}`)
+      if (reloadRes.ok) {
+        const data = await reloadRes.json()
+        setVenue(data)
+      }
     } catch (err: any) {
       toast({ title: err.message, variant: 'destructive' })
     }
@@ -203,7 +216,7 @@ export default function VenueDetailPage() {
       {/* Hero Banner */}
       <div className="relative rounded-2xl overflow-hidden mb-6">
         {(() => {
-          const imgs = JSON.parse(venue.images || '[]')
+          const imgs: string[] = safeJsonParse(venue.images)
           return imgs.length > 0 ? (
             <div className="relative aspect-[21/9] sm:aspect-[3/1]">
               <img src={imgs[0]} alt={venue.name} className="w-full h-full object-cover" />
@@ -368,7 +381,7 @@ export default function VenueDetailPage() {
 
                 <div>
                   <Label className="text-xs mb-1 block">Select Date</Label>
-                  <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} min={new Date().toISOString().split('T')[0]} />
+                  <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} min={new Date().toLocaleDateString('en-CA')} />
                 </div>
 
                 {selectedCourt && availableSlots.length > 0 && (
@@ -487,7 +500,7 @@ export default function VenueDetailPage() {
       {activeTab === 'reviews' && (
         <div className="space-y-6">
           {/* Write review */}
-          <ReviewForm onSubmit={handleReview} hasReview={venue.reviews.some((r: Review) => r.user.id === user?.id)} />
+          <ReviewForm onSubmit={handleReview} hasReview={venue.reviews.some((r: Review) => r.user?.id === user?.id)} />
 
           {/* Reviews list */}
           <div className="space-y-3">
@@ -500,10 +513,10 @@ export default function VenueDetailPage() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                          <span className="text-xs font-bold text-primary">{review.user.name.charAt(0)}</span>
+                          <span className="text-xs font-bold text-primary">{review.user?.name?.charAt(0) || '?'}</span>
                         </div>
                         <div>
-                          <p className="text-sm font-medium">{review.user.name}</p>
+                          <p className="text-sm font-medium">{review.user?.name || 'Anonymous'}</p>
                           <p className="text-xs text-muted-foreground">{new Date(review.createdAt).toLocaleDateString()}</p>
                         </div>
                       </div>

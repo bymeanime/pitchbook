@@ -67,7 +67,7 @@ export default function OwnerDashboard() {
 
   if (!user || (user.role !== 'venue_owner' && user.role !== 'admin')) {
     return (
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center py-16">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <Building2 className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
         <h2 className="text-lg font-semibold">Access Denied</h2>
         <p className="text-sm text-muted-foreground">You need venue owner access to view this dashboard</p>

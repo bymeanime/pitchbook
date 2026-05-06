@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/api/", "/api/seed", "/api/seed/enrich"],
+        disallow: ["/api/"],
       },
     ],
     sitemap: "https://pitchbook-eta.vercel.app/sitemap.xml",

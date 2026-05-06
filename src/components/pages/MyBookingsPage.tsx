@@ -132,6 +132,9 @@ export default function MyBookingsPage() {
           {filteredBookings.map((booking) => {
             const config = statusConfig[booking.status] || statusConfig.pending
             const StatusIcon = config.icon
+            const courtName = booking.court?.name || 'Unknown Court'
+            const venueName = booking.court?.venue?.name || 'Unknown Venue'
+            const venueCity = booking.court?.venue?.city || ''
 
             return (
               <Card key={booking.id} className="hover:shadow-md transition-all">
@@ -143,16 +146,16 @@ export default function MyBookingsPage() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-sm">{booking.court.name}</h3>
+                          <h3 className="font-semibold text-sm">{courtName}</h3>
                           <Badge className={config.color} style={{ colorScheme: undefined }}>
                             <StatusIcon className="w-3 h-3 mr-1" /> {config.label}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground mb-1">{booking.court.venue.name}</p>
+                        <p className="text-xs text-muted-foreground mb-1">{venueName}</p>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {booking.date}</span>
                           <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {booking.startTime} - {booking.endTime}</span>
-                          <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {booking.court.venue.city}</span>
+                          {venueCity && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {venueCity}</span>}
                         </div>
                       </div>
                     </div>

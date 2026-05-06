@@ -39,7 +39,7 @@ export async function GET(request: Request) {
       { email: 'community@pitchbook.com', name: 'Community Sports Center', phone: '+977-9805555555' },
     ]
 
-    const ownerRecords = []
+    const ownerRecords: any[] = []
     for (const owner of owners) {
       const o = await db.user.upsert({
         where: { email: owner.email },
@@ -62,7 +62,7 @@ export async function GET(request: Request) {
       'David Maharjan', 'Luna Shrestha', 'Chris Perry', 'Anita Basnet'
     ]
 
-    const playerRecords = []
+    const playerRecords: any[] = []
     for (const name of playerNames) {
       const email = name.toLowerCase().replace(/\s+/g, '.') + '@email.com'
       const p = await db.user.upsert({
@@ -152,7 +152,7 @@ export async function GET(request: Request) {
       }
     ]
 
-    const venueRecords = []
+    const venueRecords: any[] = []
     for (const venue of venueData) {
       const v = await db.venue.upsert({
         where: { id: (await db.venue.findFirst({ where: { name: venue.name } }))?.id || 'none' },
@@ -210,7 +210,7 @@ export async function GET(request: Request) {
       ]},
     ]
 
-    const allCourtRecords = []
+    const allCourtRecords: any[] = []
     for (const config of courtConfigs) {
       const venueId = venueRecords[config.venueIdx].id
       for (const court of config.courts) {

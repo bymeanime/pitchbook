@@ -1,5 +1,3 @@
-import Link from 'next/link'
-
 export default function NotFound() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
@@ -12,7 +10,7 @@ export default function NotFound() {
         href="/"
         className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition-colors"
       >
-        ← Back to Home
+        &larr; Back to Home
       </a>
     </div>
   )

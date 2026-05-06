@@ -43,21 +43,35 @@ interface Venue {
 }
 
 export default function HomePage() {
-  const { navigate, setSelectedVenueId, setSelectedSport } = useAppStore()
+  const { navigate, setSelectedVenueId, setSelectedSport, setSearchQuery } = useAppStore()
   const { toast } = useToast()
   const [venues, setVenues] = useState<Venue[]>([])
   const [searchInput, setSearchInput] = useState('')
   const [sportFilter, setSportFilter] = useState('')
 
+  const safeJsonParse = (str: string | null | undefined, fallback: any = []): any => {
+    if (!str) return fallback
+    try {
+      const parsed = JSON.parse(str)
+      return Array.isArray(parsed) ? parsed : fallback
+    } catch {
+      return fallback
+    }
+  }
+
   useEffect(() => {
     fetch('/api/venues')
-      .then(res => res.json())
-      .then(data => setVenues(data.slice(0, 6)))
-      .catch(() => {})
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load venues')
+        return res.json()
+      })
+      .then(data => setVenues(Array.isArray(data) ? data.slice(0, 6) : []))
+      .catch(() => toast({ title: 'Failed to load featured venues', variant: 'destructive' }))
   }, [])
 
   const handleSearch = () => {
     if (searchInput.trim()) {
+      setSearchQuery(searchInput.trim())
       navigate('venues')
     }
   }
@@ -167,7 +181,7 @@ export default function HomePage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {venues.filter(v => v.isFeatured).map((venue) => {
-              const venueSports = JSON.parse(venue.sports || '[]')
+              const venueSports = safeJsonParse(venue.sports)
               const minPrice = venue.courts.length > 0 ? Math.min(...venue.courts.map(c => c.pricePerHour)) : 0
               return (
                 <Card
@@ -176,7 +190,7 @@ export default function HomePage() {
                   onClick={() => openVenue(venue.id)}
                 >
                   {(() => {
-                    const imgs = JSON.parse(venue.images || '[]')
+                    const imgs = safeJsonParse(venue.images)
                     return (
                       <div className="aspect-[16/9] relative overflow-hidden bg-gradient-to-br from-primary/20 to-primary/5">
                         {imgs.length > 0 ? (

@@ -49,28 +49,36 @@ export default function ProfilePage() {
       const userBookings = Array.isArray(bookingsData) ? bookingsData : []
       setBookings(userBookings)
 
-      // Find teams this user is captain of — await all tournament detail fetches
+      // Find teams this user is captain of
       const userTeams: TournamentTeam[] = []
-      if (Array.isArray(tournamentsData)) {
-        const teamPromises = tournamentsData.map(async (t: any) => {
-          try {
-            const res = await fetch(`/api/tournaments/${t.id}`)
-            const data = await res.json()
-            if (data.teams) {
-              const myTeams = data.teams.filter((team: any) => team.captainId === user?.id)
-              return myTeams.map((team: any) => ({
-                id: team.id,
-                name: team.name,
-                tournament: { id: t.id, name: t.name, sport: t.sport, status: t.status, startDate: t.startDate }
-              }))
+      if (Array.isArray(tournamentsData) && tournamentsData.length > 0) {
+        // Fetch tournament details in parallel with concurrency limit
+        const BATCH_SIZE = 5
+        for (let i = 0; i < tournamentsData.length; i += BATCH_SIZE) {
+          const batch = tournamentsData.slice(i, i + BATCH_SIZE)
+          const teamPromises = batch.map(async (t: any) => {
+            try {
+              const res = await fetch(`/api/tournaments/${t.id}`)
+              if (!res.ok) return []
+              const data = await res.json()
+              if (data.teams) {
+                const myTeams = data.teams.filter((team: any) => team.captainId === user?.id)
+                return myTeams.map((team: any) => ({
+                  id: team.id,
+                  name: team.name,
+                  tournament: { id: t.id, name: t.name, sport: t.sport, status: t.status, startDate: t.startDate }
+                }))
+              }
+            } catch {
+              // Skip failed fetches
             }
-          } catch { /* skip failed fetches */ }
-          return []
-        })
+            return []
+          })
 
-        const results = await Promise.all(teamPromises)
-        for (const teams of results) {
-          userTeams.push(...teams)
+          const results = await Promise.all(teamPromises)
+          for (const teams of results) {
+            userTeams.push(...teams)
+          }
         }
       }
 

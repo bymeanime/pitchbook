@@ -31,13 +31,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Only venue owners can create venues' }, { status: 403 })
     }
 
+    // Ensure JSON fields are not double-encoded
+    const safeStringify = (val: any): string => {
+      if (typeof val === 'string') {
+        try { return JSON.stringify(JSON.parse(val)) }
+        catch { return JSON.stringify([val]) }
+      }
+      return JSON.stringify(val || [])
+    }
+
     const venue = await db.venue.create({
       data: {
         ...body,
         ownerId: session.userId,
-        images: JSON.stringify(body.images || []),
-        amenities: JSON.stringify(body.amenities || []),
-        sports: JSON.stringify(body.sports || []),
+        images: safeStringify(body.images),
+        amenities: safeStringify(body.amenities),
+        sports: safeStringify(body.sports),
       }
     })
 

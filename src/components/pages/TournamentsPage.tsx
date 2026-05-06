@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
 import {
-  Trophy, Calendar, MapPin, Users, Award, ChevronRight, Star,
+  Trophy, Calendar, MapPin, Users, Award, ChevronRight,
   DollarSign, Clock, Swords, CheckCircle, XCircle, Plus
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
@@ -79,13 +79,19 @@ export default function TournamentsPage() {
   useEffect(() => {
     const params = sportFilter ? `?sport=${sportFilter}` : ''
     fetch(`/api/tournaments${params}`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load tournaments')
+        return res.json()
+      })
       .then(data => {
         setTournaments(Array.isArray(data) ? data : [])
         setLoading(false)
       })
-      .catch(() => setLoading(false))
-  }, [sportFilter])
+      .catch(() => {
+        toast({ title: 'Failed to load tournaments', variant: 'destructive' })
+        setLoading(false)
+      })
+  }, [sportFilter, toast])
 
   const openTournament = (id: string) => {
     setSelectedTournamentId(id)
@@ -206,11 +212,14 @@ export function TournamentDetailPage() {
     if (!selectedTournamentId) return
     setLoading(true)
     fetch(`/api/tournaments/${selectedTournamentId}`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load tournament')
+        return res.json()
+      })
       .then(data => setTournament(data))
       .catch(() => toast({ title: 'Failed to load', variant: 'destructive' }))
       .finally(() => setLoading(false))
-  }, [selectedTournamentId])
+  }, [selectedTournamentId, toast])
 
   const handleRegister = async () => {
     if (!user || !token) {
@@ -229,8 +238,11 @@ export function TournamentDetailPage() {
       setRegisterOpen(false)
       setTeamName('')
       // Reload
-      const data = await fetch(`/api/tournaments/${selectedTournamentId}`).then(r => r.json())
-      setTournament(data)
+      const reloadRes = await fetch(`/api/tournaments/${selectedTournamentId}`)
+      if (reloadRes.ok) {
+        const data = await reloadRes.json()
+        setTournament(data)
+      }
     } catch (err: any) {
       toast({ title: err.message, variant: 'destructive' })
     }
