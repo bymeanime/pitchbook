@@ -31,6 +31,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Only venue owners can create venues' }, { status: 403 })
     }
 
+    // Destructure courts from body so they are not spread into Prisma create
+    const { courts: courtsData, ...venueData } = body
+
     // Ensure JSON fields are not double-encoded
     const safeStringify = (val: any): string => {
       if (typeof val === 'string') {
@@ -42,13 +45,29 @@ export async function POST(request: NextRequest) {
 
     const venue = await db.venue.create({
       data: {
-        ...body,
+        ...venueData,
         ownerId: session.userId,
-        images: safeStringify(body.images),
-        amenities: safeStringify(body.amenities),
-        sports: safeStringify(body.sports),
+        images: safeStringify(venueData.images),
+        amenities: safeStringify(venueData.amenities),
+        sports: safeStringify(venueData.sports),
       }
     })
+
+    // Create courts if provided
+    if (Array.isArray(courtsData) && courtsData.length > 0) {
+      for (const court of courtsData) {
+        await db.court.create({
+          data: {
+            name: court.name,
+            sport: court.sport,
+            surface: court.surface || 'artificial_turf',
+            isIndoor: court.isIndoor || false,
+            pricePerHour: Number(court.pricePerHour) || 0,
+            venueId: venue.id,
+          }
+        })
+      }
+    }
 
     return NextResponse.json(venue, { status: 201 })
   } catch (error: any) {

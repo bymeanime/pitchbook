@@ -12,9 +12,11 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import {
   Building2, Calendar, DollarSign, Users, TrendingUp, Star,
-  CheckCircle, XCircle, Clock, AlertCircle, BarChart3, Eye, EyeOff, RefreshCw
+  CheckCircle, XCircle, Clock, AlertCircle, BarChart3, Eye, EyeOff, RefreshCw, Plus, Trophy
 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import AddVenueDialog from '@/components/AddVenueDialog'
+import CreateTournamentDialog from '@/components/CreateTournamentDialog'
 
 // ── Error Boundary ──────────────────────────────────────────────
 interface EBProps { children: React.ReactNode }
@@ -69,8 +71,10 @@ function OwnerDashboardInner() {
   const [monthly, setMonthly] = useState<MonthlyData>({})
   const [loading, setLoading] = useState(true)
   const [bookingFilter, setBookingFilter] = useState('all')
+  const [addVenueOpen, setAddVenueOpen] = useState(false)
+  const [createTournamentOpen, setCreateTournamentOpen] = useState(false)
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     if (!user || !token) return
     setLoading(true)
     fetch('/api/owner/bookings', { headers: { 'Authorization': `Bearer ${token}` } })
@@ -100,6 +104,10 @@ function OwnerDashboardInner() {
       })
       .catch(() => toast({ title: 'Failed to load stats', variant: 'destructive' }))
   }, [user, token])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   // ── Guard: not authorized ──
   if (!user || (user.role !== 'venue_owner' && user.role !== 'admin')) {
@@ -159,9 +167,19 @@ function OwnerDashboardInner() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Owner Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Manage your venues, bookings, and revenue</p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Owner Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Manage your venues, bookings, and revenue</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={() => setAddVenueOpen(true)}>
+            <Plus className="w-4 h-4 mr-1.5" /> Add Venue
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setCreateTournamentOpen(true)}>
+            <Trophy className="w-4 h-4 mr-1.5" /> Create Tournament
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -368,6 +386,18 @@ function OwnerDashboardInner() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Dialogs */}
+      <AddVenueDialog
+        open={addVenueOpen}
+        onOpenChange={setAddVenueOpen}
+        onSuccess={loadData}
+      />
+      <CreateTournamentDialog
+        open={createTournamentOpen}
+        onOpenChange={setCreateTournamentOpen}
+        onSuccess={loadData}
+      />
     </div>
   )
 }
