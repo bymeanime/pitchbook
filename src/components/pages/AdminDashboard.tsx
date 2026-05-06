@@ -27,15 +27,20 @@ export default function AdminDashboard() {
   const { toast } = useToast()
   const [stats, setStats] = useState<AdminStats | null>(null)
   const isAdmin = user?.role === 'admin' && !!token
-  const loading = !stats
+  const loading = isAdmin && !stats
 
   useEffect(() => {
     if (!isAdmin) return
     fetch('/api/admin/stats', { headers: { 'Authorization': `Bearer ${token}` } })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`Failed to load admin stats (${res.status})`)
+        return res.json()
+      })
       .then(data => setStats(data))
-      .catch(() => toast({ title: 'Failed to load', variant: 'destructive' }))
-  }, [isAdmin, token])
+      .catch((err) => {
+        toast({ title: err.message || 'Failed to load', variant: 'destructive' })
+      })
+  }, [isAdmin, token, toast])
 
   if (!user || user.role !== 'admin') {
     return (

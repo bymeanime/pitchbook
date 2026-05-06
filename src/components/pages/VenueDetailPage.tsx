@@ -140,7 +140,8 @@ export default function VenueDetailPage() {
     if (!selectedCourt || !selectedDate) return []
     const date = new Date(selectedDate)
     const dayOfWeek = date.getDay()
-    return selectedCourt.timeSlots
+    const slots = selectedCourt.timeSlots || []
+    return slots
       .filter(s => s.dayOfWeek === dayOfWeek && s.isActive)
       .sort((a, b) => a.startTime.localeCompare(b.startTime))
   }

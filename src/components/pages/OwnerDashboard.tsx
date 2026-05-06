@@ -47,23 +47,33 @@ export default function OwnerDashboard() {
     if (!user || !token) return
     setLoading(true)
     fetch('/api/owner/bookings', { headers: { 'Authorization': `Bearer ${token}` } })
-      .then(res => res.json())
-      .then(data => {
-        setVenues(data.venues || [])
-        setBookings(data.bookings || [])
+      .then(res => {
+        if (!res.ok) throw new Error(`Failed to load bookings (${res.status})`)
+        return res.json()
       })
-      .catch(() => toast({ title: 'Failed to load data', variant: 'destructive' }))
+      .then(data => {
+        setVenues(Array.isArray(data.venues) ? data.venues : [])
+        setBookings(Array.isArray(data.bookings) ? data.bookings : [])
+      })
+      .catch((err) => {
+        toast({ title: err.message || 'Failed to load data', variant: 'destructive' })
+        setVenues([])
+        setBookings([])
+      })
       .finally(() => setLoading(false))
 
     fetch('/api/owner/stats', { headers: { 'Authorization': `Bearer ${token}` } })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load stats')
+        return res.json()
+      })
       .then(data => {
         setTotalRevenue(data.totalRevenue || 0)
         setMonthly(data.monthly || {})
       })
-      .catch(() => {})
+      .catch(() => toast({ title: 'Failed to load stats', variant: 'destructive' }))
       .finally(() => setStatsLoading(false))
-  }, [user, token])
+  }, [user, token, toast])
 
   if (!user || (user.role !== 'venue_owner' && user.role !== 'admin')) {
     return (
@@ -193,7 +203,7 @@ export default function OwnerDashboard() {
                           <p className="text-xs text-muted-foreground">
                             {booking.venueName} • {booking.date} • {booking.startTime}-{booking.endTime}
                           </p>
-                          {booking.members[0] && (
+                          {booking.members?.[0]?.user?.name && booking.members?.[0]?.user?.email && (
                             <p className="text-xs text-muted-foreground">
                               By: {booking.members[0].user.name} ({booking.members[0].user.email})
                             </p>
