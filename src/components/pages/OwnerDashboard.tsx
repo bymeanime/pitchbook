@@ -68,7 +68,7 @@ function OwnerDashboardInner() {
   const [totalRevenue, setTotalRevenue] = useState(0)
   const [monthly, setMonthly] = useState<MonthlyData>({})
   const [loading, setLoading] = useState(true)
-  const [bookingFilter, setBookingFilter] = useState('')
+  const [bookingFilter, setBookingFilter] = useState('all')
 
   useEffect(() => {
     if (!user || !token) return
@@ -114,7 +114,7 @@ function OwnerDashboardInner() {
 
   // ── Derived data ──
   const safeBookings = Array.isArray(bookings) ? bookings : []
-  const filteredBookings = bookingFilter ? safeBookings.filter(b => b.status === bookingFilter) : safeBookings
+  const filteredBookings = bookingFilter && bookingFilter !== 'all' ? safeBookings.filter(b => b.status === bookingFilter) : safeBookings
   const totalBookings = safeBookings.length
   const confirmedBookings = safeBookings.filter(b => b.status === 'confirmed' || b.status === 'completed').length
   const totalPlatformFees = safeBookings.reduce((sum, b) => sum + (b.platformFee || 0), 0)
@@ -201,7 +201,7 @@ function OwnerDashboardInner() {
                 <SelectValue placeholder="All bookings" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All</SelectItem>
+                <SelectItem value="all">All</SelectItem>
                 <SelectItem value="confirmed">Confirmed</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
