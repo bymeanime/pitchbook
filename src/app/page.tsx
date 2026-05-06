@@ -18,7 +18,7 @@ import { useEffect, useRef } from 'react'
 
 export default function App() {
   const { currentPage, user, token, setAuth, navigate } = useAppStore()
-  const { isSignedIn, isLoaded, user: clerkUser } = useUser()
+  const { isSignedIn, isLoaded } = useUser()
   const hasSyncedRef = useRef(false)
 
   // Restore custom auth from localStorage on mount (one-time only)
@@ -38,19 +38,27 @@ export default function App() {
     }
   }, [])
 
-  // Sync Clerk user to custom auth store
-  // CRITICAL: Always re-sync when Clerk is signed in, even if stale localStorage
-  // data exists with a wrong role. This ensures the DB role (admin/venue_owner)
-  // is always used instead of a previously-cached wrong role.
+  // Clerk sync — ONLY if:
+  // 1. Clerk user is signed in
+  // 2. There is NO existing custom auth user (user logged in via custom login, not Clerk)
+  // 3. Haven't synced yet in this session
+  //
+  // This way, custom auth login is never overridden by Clerk sync.
+  // Clerk sync only kicks in for users who sign up via Clerk's UI.
   useEffect(() => {
-    if (!isLoaded) return // Wait for Clerk to finish loading
-    if (hasSyncedRef.current) return // Only sync once per mount
+    if (!isLoaded) return
+    if (hasSyncedRef.current) return
 
-    if (isSignedIn) {
+    // If user is already logged in via custom auth, do NOT override with Clerk
+    if (user && token) {
+      hasSyncedRef.current = true
+      return
+    }
+
+    if (isSignedIn && !user) {
       hasSyncedRef.current = true
 
-      // Always call clerk-sync when Clerk is signed in, regardless of stored user.
-      // The backend matches by email and returns the correct DB role.
+      // Clerk user signed in but no custom auth — sync them
       fetch('/api/auth/clerk-sync', { method: 'POST' })
         .then(res => {
           if (!res.ok) throw new Error(`Sync failed (${res.status})`)
@@ -59,32 +67,15 @@ export default function App() {
         .then(data => {
           if (data.user && data.token) {
             setAuth(data.user, data.token)
-            // Auto-navigate to appropriate dashboard based on role
             if (data.user.role === 'admin') navigate('admin-dashboard')
             else if (data.user.role === 'venue_owner') navigate('owner-dashboard')
           }
         })
         .catch((err) => {
           console.error('Clerk sync failed:', err.message)
-          // Sync failed — user can still browse but can't book
-          // Clear any stale auth data that might have wrong role
-          const clerkEmail = clerkUser?.emailAddresses?.[0]?.emailAddress
-          const storedEmail = user?.email
-          if (clerkEmail && storedEmail && clerkEmail !== storedEmail) {
-            // Different user signed in — clear old data
-            useAppStore.setState({ user: null, token: null })
-            localStorage.removeItem('pb_user')
-            localStorage.removeItem('pb_token')
-          }
         })
-    } else if (!isSignedIn && user) {
-      // Clerk user signed out — also clear custom auth
-      useAppStore.setState({ user: null, token: null, currentPage: 'home' })
-      localStorage.removeItem('pb_user')
-      localStorage.removeItem('pb_token')
-      hasSyncedRef.current = false
     }
-  }, [isSignedIn, isLoaded]) // Intentionally minimal deps to avoid re-triggering
+  }, [isSignedIn, isLoaded, user, token, setAuth, navigate])
 
   const renderPage = () => {
     switch (currentPage) {
