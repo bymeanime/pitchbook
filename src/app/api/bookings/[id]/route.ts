@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { parseSessionToken } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { logAudit, checkRedFlags } from '@/lib/audit'
+import { awardBookingPoints } from '@/lib/points'
 
 export async function GET(
   request: NextRequest,
@@ -203,6 +204,52 @@ export async function PATCH(
         action: 'status_changed', actorId: session.userId, actorRole: session.role,
         oldValue: { status: booking.status },
         newValue: { status: 'completed' },
+      })
+
+      // Award loyalty points to booking members (online bookings only, not walk-in)
+      if (!booking.isWalkIn) {
+        const members = await db.bookingMember.findMany({
+          where: { bookingId: id },
+          select: { userId: true, amount: true }
+        })
+        for (const member of members) {
+          await awardBookingPoints({
+            userId: member.userId,
+            bookingId: id,
+            amount: member.amount,
+            isWalkIn: false
+          })
+        }
+      }
+
+      return NextResponse.json(updated)
+    }
+
+    // ── ADMIN EDIT ──
+    // Admin can edit booking details (date, time, notes, price)
+    if (body.action === 'admin_edit' && isAdmin) {
+      const { date, startTime, endTime, notes, totalPrice } = body
+      const updateData: Record<string, any> = {}
+      if (date !== undefined) updateData.date = date
+      if (startTime !== undefined) updateData.startTime = startTime
+      if (endTime !== undefined) updateData.endTime = endTime
+      if (notes !== undefined) updateData.notes = notes
+      if (totalPrice !== undefined) updateData.totalPrice = totalPrice
+
+      if (Object.keys(updateData).length === 0) {
+        return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
+      }
+
+      const updated = await db.booking.update({
+        where: { id },
+        data: updateData
+      })
+
+      await logAudit({
+        entityType: 'booking', entityId: id,
+        action: 'admin_edit', actorId: session.userId, actorRole: 'admin',
+        oldValue: { status: booking.status, date: booking.date, startTime: booking.startTime, endTime: booking.endTime },
+        newValue: updateData,
       })
 
       return NextResponse.json(updated)

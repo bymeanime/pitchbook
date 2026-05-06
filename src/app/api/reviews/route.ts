@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { parseSessionToken } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
+import { awardReviewPoints } from '@/lib/points'
 
 export async function GET(request: NextRequest) {
   try {
@@ -65,6 +66,9 @@ export async function POST(request: NextRequest) {
         totalReviews: aggregate._count.rating,
       }
     })
+
+    // Award bonus loyalty points for posting a review
+    await awardReviewPoints(session.userId, venueId)
 
     return NextResponse.json(review, { status: 201 })
   } catch (error: any) {

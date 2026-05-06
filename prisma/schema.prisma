@@ -27,6 +27,7 @@ model User {
   hostedTournaments Tournament[]
   tournamentTeams   TournamentTeam[]
   subscription      Subscription?
+  points            PointsTransaction[]
 }
 
 // ─── Venues ───────────────────────────────────────────────
@@ -340,6 +341,25 @@ model RedFlag {
   @@index([entityType, entityId])
   @@index([flagType])
   @@index([isResolved])
+}
+
+// ─── Loyalty Points (Earn-Only) ──────────────────────────
+// Players earn points on online bookings (not walk-in).
+// Redemption is empty for now — points just accumulate.
+// Future: catalog, referral bonuses, partner rewards.
+model PointsTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  bookingId   String?  // null for admin-granted points
+  points      Int      // positive = earned, negative = redeemed (future)
+  type        String   // booking_completed, review_posted, referral_bonus, admin_grant, redeemed (future)
+  description String   // human-readable: "Earned 10 points for completing booking #abc123"
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([bookingId])
 }
 
 // ─── Reviews ─────────────────────────────────────────────
