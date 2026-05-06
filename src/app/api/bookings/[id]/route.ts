@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { parseSessionToken } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
+import { logAudit, checkRedFlags } from '@/lib/audit'
 
 export async function GET(
   request: NextRequest,
@@ -81,16 +82,15 @@ export async function PATCH(
         }
       })
 
-      // Update payment to completed (venue confirmed, customer will pay at venue)
-      await db.payment.updateMany({
-        where: { bookingId: id },
-        data: { status: 'completed' }
-      })
+      // Payment stays 'pending' — customer pays cash at venue.
+      // Payment will be marked 'completed' when owner marks booking as 'completed'.
 
-      // Update booking member status to paid
-      await db.bookingMember.updateMany({
-        where: { bookingId: id },
-        data: { status: 'paid' }
+      await logAudit({
+        entityType: 'booking', entityId: id,
+        action: 'status_changed', actorId: session.userId, actorRole: session.role,
+        oldValue: { status: booking.status },
+        newValue: { status: 'confirmed' },
+        metadata: { confirmedBy: session.userId }
       })
 
       return NextResponse.json(updated)
@@ -114,6 +114,17 @@ export async function PATCH(
           rejectedAt: new Date(),
           rejectionReason: body.reason || null,
         }
+      })
+
+      await logAudit({
+        entityType: 'booking', entityId: id,
+        action: 'status_changed', actorId: session.userId, actorRole: session.role,
+        oldValue: { status: booking.status },
+        newValue: { status: 'rejected', reason: body.reason },
+      })
+      await checkRedFlags({
+        entityType: 'booking', entityId: id,
+        action: 'rejected', actorId: session.userId
       })
 
       return NextResponse.json(updated)
@@ -146,6 +157,17 @@ export async function PATCH(
         data: { status: 'refunded' }
       })
 
+      await logAudit({
+        entityType: 'booking', entityId: id,
+        action: 'status_changed', actorId: session.userId, actorRole: session.role,
+        oldValue: { status: booking.status },
+        newValue: { status: 'cancelled', reason: body.reason },
+      })
+      await checkRedFlags({
+        entityType: 'booking', entityId: id,
+        action: 'cancelled', actorId: session.userId
+      })
+
       return NextResponse.json(updated)
     }
 
@@ -162,6 +184,25 @@ export async function PATCH(
       const updated = await db.booking.update({
         where: { id },
         data: { status: 'completed' }
+      })
+
+      // Mark payment as completed (customer paid at venue after session)
+      await db.payment.updateMany({
+        where: { bookingId: id },
+        data: { status: 'completed' }
+      })
+
+      // Update booking member status to paid
+      await db.bookingMember.updateMany({
+        where: { bookingId: id },
+        data: { status: 'paid' }
+      })
+
+      await logAudit({
+        entityType: 'booking', entityId: id,
+        action: 'status_changed', actorId: session.userId, actorRole: session.role,
+        oldValue: { status: booking.status },
+        newValue: { status: 'completed' },
       })
 
       return NextResponse.json(updated)

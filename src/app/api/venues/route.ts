@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { parseSessionToken } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
+import { getEffectiveTier, checkTrialExpiry, TIER_LIMITS } from '@/lib/subscription'
 
 export async function GET() {
   try {
@@ -29,6 +30,24 @@ export async function POST(request: NextRequest) {
     const session = parseSessionToken(token)
     if (!session || session.role !== 'venue_owner') {
       return NextResponse.json({ error: 'Only venue owners can create venues' }, { status: 403 })
+    }
+
+    // ── Subscription tier enforcement ──
+    let subscription = await db.subscription.findUnique({ where: { userId: session.userId } })
+    if (subscription?.status === 'trial') {
+      const expired = checkTrialExpiry(subscription.status, subscription.trialEndsAt)
+      if (expired) subscription = await db.subscription.update({ where: { id: subscription.id }, data: { status: 'expired' } })
+    }
+    const effectiveTier = getEffectiveTier(subscription?.tier as any, subscription?.status as any, subscription?.trialEndsAt)
+    const limits = TIER_LIMITS[effectiveTier]
+
+    if (limits.maxVenues !== Infinity) {
+      const venueCount = await db.venue.count({ where: { ownerId: session.userId } })
+      if (venueCount >= limits.maxVenues) {
+        return NextResponse.json({
+          error: `Your ${effectiveTier} plan allows a maximum of ${limits.maxVenues} venues. Upgrade to Pro for more.`
+        }, { status: 403 })
+      }
     }
 
     // Destructure courts from body so they are not spread into Prisma create

@@ -26,6 +26,7 @@ model User {
   reviews           Review[]
   hostedTournaments Tournament[]
   tournamentTeams   TournamentTeam[]
+  subscription      Subscription?
 }
 
 // ─── Venues ───────────────────────────────────────────────
@@ -170,6 +171,10 @@ model Booking {
   court         Court     @relation(fields: [courtId], references: [id])
   members       BookingMember[]
   payments      Payment[]
+
+  @@index([status])
+  @@index([courtId, date])
+  @@index([isWalkIn])
 }
 
 // ─── Booking Members (for split payments) ───────────────
@@ -261,6 +266,80 @@ model TournamentMatch {
   tournament    Tournament     @relation(fields: [tournamentId], references: [id])
   teamA         TournamentTeam? @relation("MatchTeamA", fields: [teamAId], references: [id])
   teamB         TournamentTeam? @relation("MatchTeamB", fields: [teamBId], references: [id])
+}
+
+// ─── Subscriptions (Venue Owner Plans) ─────────────────
+// Manual payment model for Nepal market (no automated gateway).
+// Owner pays offline → admin verifies → admin upgrades manually.
+model Subscription {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  tier            String    @default("free")        // free, pro, enterprise
+  status          String    @default("active")      // active, trial, expired, cancelled
+
+  // ── Trial period ──
+  trialStartsAt   DateTime?                          // when trial began
+  trialEndsAt     DateTime?                          // when trial ends
+
+  // ── Manual payment tracking ──
+  activatedAt       DateTime?                        // when they first paid (trial → paid)
+  currentPeriodStart DateTime?                       // billing period start
+  currentPeriodEnd   DateTime?                       // billing period end
+  lastPaidAmount     Float?                           // amount of last payment
+  lastPaidMethod     String?                          // cash, bank_transfer, esewa, khalti
+  lastPaidAt         DateTime?                        // when last payment recorded
+  notes              String?                          // admin notes
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            User      @relation(fields: [userId], references: [id])
+
+  @@index([status])
+  @@index([tier])
+}
+
+// ─── Audit Log (Action Tracking) ──────────────────────────
+// Append-only log of significant platform actions.
+// No penalties — just tracking for transparency.
+model AuditLog {
+  id          String   @id @default(cuid())
+  entityType  String                     // booking, user, venue, subscription, pricing_rule
+  entityId    String                     // the ID of the affected entity
+  action      String                     // created, status_changed, updated, deleted, role_changed
+  actorId     String                     // who performed the action (userId)
+  actorRole   String?                    // player, venue_owner, admin
+  oldValue    String?                    // JSON: key fields before change
+  newValue    String?                    // JSON: key fields after change
+  metadata    String    @default("{}")   // extra context: reason, IP, etc.
+  createdAt   DateTime  @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+// ─── Red Flags (Suspicious Activity Alerts) ─────────────────
+// Advisory-only — no automated penalties.
+// Admin reviews and resolves manually.
+model RedFlag {
+  id              String    @id @default(cuid())
+  entityType      String                       // user, venue
+  entityId        String                       // the flagged entity
+  flagType        String                       // rapid_cancellation, frequent_rejection, suspicious_pattern, price_manipulation
+  severity        String    @default("low")    // low, medium, high
+  description     String                       // human-readable description
+  metadata        String?   @default("{}")    // JSON: { cancelCount: 5, period: "7d" }
+  isResolved      Boolean   @default(false)
+  resolvedBy      String?
+  resolvedAt      DateTime?
+  resolutionNotes String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([entityType, entityId])
+  @@index([flagType])
+  @@index([isResolved])
 }
 
 // ─── Reviews ─────────────────────────────────────────────

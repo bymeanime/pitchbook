@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { parseSessionToken } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
+import { getEffectiveTier, checkTrialExpiry } from '@/lib/subscription'
 
 // GET /api/pricing-rules?venueId=xxx&courtId=xxx
 // List all pricing rules for a venue (owner/admin only)
@@ -81,6 +82,19 @@ export async function POST(request: NextRequest) {
     if (!venue) return NextResponse.json({ error: 'Venue not found' }, { status: 404 })
     if (venue.ownerId !== session.userId && session.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // ── Subscription tier check: dynamic pricing requires Pro+ ──
+    let subscription = await db.subscription.findUnique({ where: { userId: venue.ownerId } })
+    if (subscription?.status === 'trial') {
+      const expired = checkTrialExpiry(subscription.status, subscription.trialEndsAt)
+      if (expired) subscription = await db.subscription.update({ where: { id: subscription.id }, data: { status: 'expired' } })
+    }
+    const effectiveTier = getEffectiveTier(subscription?.tier as any, subscription?.status as any, subscription?.trialEndsAt)
+    if (effectiveTier === 'free') {
+      return NextResponse.json({
+        error: 'Dynamic pricing is available on Pro and Enterprise plans. Start a free trial or upgrade.'
+      }, { status: 403 })
     }
 
     // Verify court belongs to venue if courtId provided
