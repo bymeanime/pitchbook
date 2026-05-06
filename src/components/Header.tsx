@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useAppStore } from '@/store/useAppStore'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,11 +15,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { UserButton, useUser } from '@clerk/nextjs'
+
+const CLERK_KEY = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+
+// Clerk UserButton — only loaded on client, only when Clerk is configured
+const ClerkHeaderSection = CLERK_KEY
+  ? dynamic(() => import('@/components/ClerkHeaderSection'), { ssr: false })
+  : () => null
 
 export default function Header() {
   const { user, currentPage, navigate, logout } = useAppStore()
-  const { isSignedIn, user: clerkUser } = useUser()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
 
@@ -34,12 +40,10 @@ export default function Header() {
     { label: 'Tournaments', page: 'tournaments' as const, icon: Trophy },
   ]
 
-  // Use Clerk user if available, fallback to custom auth
-  const displayName = clerkUser?.fullName || clerkUser?.emailAddresses?.[0]?.emailAddress || user?.name || ''
-  const displayEmail = clerkUser?.emailAddresses?.[0]?.emailAddress || user?.email || ''
-  const isLoggedIn = isSignedIn || !!user
-
-  // Determine the actual role (from our custom auth store)
+  // Use custom auth user data (primary auth method)
+  const displayName = user?.name || ''
+  const displayEmail = user?.email || ''
+  const isLoggedIn = !!user
   const role = user?.role || 'player'
 
   // Shared dropdown menu items based on role
@@ -159,42 +163,29 @@ export default function Header() {
           {/* Auth / User Menu */}
           <div className="flex items-center gap-2">
             {isLoggedIn ? (
-              // ── Logged in (Clerk or custom auth) ──
-              <>
-                {user && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="gap-2">
-                        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
-                          <span className="text-xs font-bold text-primary">{displayName.charAt(0).toUpperCase()}</span>
-                        </div>
-                        <span className="hidden sm:inline">{displayName}</span>
-                        <ChevronDown className="w-3 h-3" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <div className="px-2 py-1.5">
-                        <p className="text-sm font-medium">{displayName || user.name}</p>
-                        <p className="text-xs text-muted-foreground">{displayEmail || user.email}</p>
-                        <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">
-                          {role.replace('_', ' ')}
-                        </span>
-                      </div>
-                      <DropdownMenuSeparator />
-                      {renderMenuItems()}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-                {isSignedIn && (
-                  <UserButton
-                    appearance={{
-                      elements: { avatarBox: "w-9 h-9" },
-                    }}
-                  />
-                )}
-              </>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+                      <span className="text-xs font-bold text-primary">{displayName.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <span className="hidden sm:inline">{displayName}</span>
+                    <ChevronDown className="w-3 h-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <div className="px-2 py-1.5">
+                    <p className="text-sm font-medium">{displayName}</p>
+                    <p className="text-xs text-muted-foreground">{displayEmail}</p>
+                    <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">
+                      {role.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <DropdownMenuSeparator />
+                  {renderMenuItems()}
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
-              // ── Not logged in — show BOTH auth options ──
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
@@ -215,6 +206,9 @@ export default function Header() {
                 </Button>
               </div>
             )}
+
+            {/* Clerk UserButton (client-only, only when Clerk is configured) */}
+            <ClerkHeaderSection />
 
             {/* Mobile menu button */}
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileOpen(!mobileOpen)}>

@@ -5,7 +5,13 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 function createPrismaClient() {
-  const connectionString = process.env.DATABASE_URL!
+  const connectionString = process.env.DATABASE_URL
+  if (!connectionString) {
+    throw new Error(
+      'DATABASE_URL environment variable is required but not set. ' +
+      'Please add it to your .env.local file or Vercel environment variables.'
+    )
+  }
 
   // Supabase uses PgBouncer which conflicts with Prisma's prepared statements.
   // Add ?pgbouncer=true to disable prepared statements.

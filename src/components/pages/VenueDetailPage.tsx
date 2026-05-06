@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast'
 import {
   MapPin, Star, Clock, Phone, Mail, Globe, ChevronLeft,
   Calendar, Check, X as XIcon, Users, Shield, Car, Wifi,
-  Coffee, ShowerHead, Zap, Sun, Moon, Award, Ban
+  Coffee, ShowerHead, Zap, Sun, Moon, Award, Ban, Tag, Loader2
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -100,6 +100,9 @@ export default function VenueDetailPage() {
   const [activeTab, setActiveTab] = useState<'info' | 'courts' | 'reviews'>('info')
   const [bookedSlots, setBookedSlots] = useState<BookedSlot[]>([])
   const [loadingBookings, setLoadingBookings] = useState(false)
+  const [pricePreview, setPricePreview] = useState<any>(null)
+  const [loadingPrice, setLoadingPrice] = useState(false)
+  const [submittingBooking, setSubmittingBooking] = useState(false)
 
   useEffect(() => {
     if (!selectedVenueId) return
@@ -144,7 +147,25 @@ export default function VenueDetailPage() {
   // Reset selected slot when court or date changes
   useEffect(() => {
     setSelectedSlot(null)
+    setPricePreview(null)
   }, [selectedCourt, selectedDate])
+
+  // Fetch price preview when a slot is selected
+  useEffect(() => {
+    if (!selectedCourt || !selectedSlot || !selectedDate || !selectedVenueId) {
+      setPricePreview(null)
+      return
+    }
+    setLoadingPrice(true)
+    fetch(`/api/venues/${selectedVenueId}/price-preview?courtId=${selectedCourt.id}&date=${selectedDate}&startTime=${selectedSlot.start}&endTime=${selectedSlot.end}`)
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch price')
+        return res.json()
+      })
+      .then(data => setPricePreview(data))
+      .catch(() => setPricePreview(null))
+      .finally(() => setLoadingPrice(false))
+  }, [selectedCourt, selectedSlot, selectedDate, selectedVenueId])
 
   if (loading || !venue) {
     return (
@@ -196,6 +217,7 @@ export default function VenueDetailPage() {
     }
     if (!selectedCourt || !selectedSlot || !selectedDate) return
 
+    setSubmittingBooking(true)
     try {
       const res = await fetch('/api/bookings', {
         method: 'POST',
@@ -214,7 +236,10 @@ export default function VenueDetailPage() {
         throw new Error(data.error || 'Booking failed')
       }
 
-      toast({ title: 'Booking confirmed!', description: `Booked ${selectedCourt.name} on ${selectedDate}` })
+      toast({
+        title: 'Booking Request Sent!',
+        description: `Your booking request for ${selectedCourt.name} on ${selectedDate} has been sent. The venue will confirm shortly.`,
+      })
       setBookingDialogOpen(false)
       setSelectedSlot(null)
       setBookingNotes('')
@@ -226,6 +251,8 @@ export default function VenueDetailPage() {
       }
     } catch (err: any) {
       toast({ title: err.message, variant: 'destructive' })
+    } finally {
+      setSubmittingBooking(false)
     }
   }
 
@@ -501,10 +528,37 @@ export default function VenueDetailPage() {
                       <span className="font-medium">{selectedSlot.start} - {selectedSlot.end}</span>
                     </div>
                     <Separator className="my-2" />
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Total</span>
-                      <span className="font-bold text-primary text-lg">Rs {selectedCourt.pricePerHour}</span>
-                    </div>
+                    {loadingPrice ? (
+                      <div className="flex items-center justify-center gap-2 py-2">
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        <span className="text-sm text-muted-foreground">Checking price...</span>
+                      </div>
+                    ) : pricePreview ? (
+                      <>
+                        {pricePreview.appliedRule && (
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <Tag className="w-3.5 h-3.5 text-amber-500" />
+                            <span className="text-xs text-amber-700 font-medium">{pricePreview.breakdown}</span>
+                          </div>
+                        )}
+                        {pricePreview.basePrice !== pricePreview.effectivePrice && (
+                          <div className="flex justify-between text-xs text-muted-foreground mb-0.5">
+                            <span>Base price</span>
+                            <span className="line-through">Rs {pricePreview.basePrice}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Total</span>
+                          <span className="font-bold text-primary text-lg">Rs {pricePreview.effectivePrice}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1">Pay at venue</p>
+                      </>
+                    ) : (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Total</span>
+                        <span className="font-bold text-primary text-lg">Rs {selectedCourt.pricePerHour}</span>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -512,24 +566,27 @@ export default function VenueDetailPage() {
                   <DialogTrigger asChild>
                     <Button className="w-full" disabled={!selectedSlot || !selectedCourt}>
                       <Check className="w-4 h-4 mr-2" />
-                      Confirm Booking
+                      Request Booking
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Confirm Your Booking</DialogTitle>
+                      <DialogTitle>Request Booking</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3">
                       <p className="text-sm text-muted-foreground">
-                        You are booking <strong>{selectedCourt?.name}</strong> at <strong>{venue.name}</strong> on <strong>{selectedDate}</strong> from <strong>{selectedSlot?.start}</strong> to <strong>{selectedSlot?.end}</strong>.
+                        You are requesting to book <strong>{selectedCourt?.name}</strong> at <strong>{venue.name}</strong> on <strong>{selectedDate}</strong> from <strong>{selectedSlot?.start}</strong> to <strong>{selectedSlot?.end}</strong>.
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        The venue owner will confirm your booking. Payment is collected at the venue.
                       </p>
                       <Textarea placeholder="Any special requests or notes..." value={bookingNotes} onChange={(e) => setBookingNotes(e.target.value)} />
                       <div className="flex justify-between items-center p-3 rounded-lg bg-muted">
                         <span className="font-medium">Total Amount</span>
-                        <span className="text-xl font-bold text-primary">Rs {selectedCourt?.pricePerHour || 0}</span>
+                        <span className="text-xl font-bold text-primary">Rs {pricePreview?.effectivePrice || selectedCourt?.pricePerHour || 0}</span>
                       </div>
-                      <Button className="w-full" onClick={handleBook}>
-                        Pay & Confirm Booking
+                      <Button className="w-full" onClick={handleBook} disabled={submittingBooking}>
+                        {submittingBooking ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...</> : 'Submit Booking Request'}
                       </Button>
                     </div>
                   </DialogContent>

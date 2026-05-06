@@ -283,6 +283,7 @@ export async function GET(request: Request) {
           endTime: booking.endTime,
           status: booking.status,
           totalPrice: booking.amount,
+          effectivePrice: booking.amount,
           platformFee: commission,
           courtId
         }

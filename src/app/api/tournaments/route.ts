@@ -43,6 +43,18 @@ export async function POST(request: NextRequest) {
     const session = parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
+    // Only venue owners and admins can create tournaments
+    if (!['venue_owner', 'admin'].includes(session.role)) {
+      return NextResponse.json({ error: 'Only venue owners and admins can create tournaments' }, { status: 403 })
+    }
+
+    // Verify the venue exists and belongs to the user (unless admin)
+    const venue = await db.venue.findUnique({ where: { id: body.venueId } })
+    if (!venue) return NextResponse.json({ error: 'Venue not found' }, { status: 404 })
+    if (venue.ownerId !== session.userId && session.role !== 'admin') {
+      return NextResponse.json({ error: 'You can only create tournaments for your own venues' }, { status: 403 })
+    }
+
     const tournament = await db.tournament.create({
       data: {
         name: body.name,

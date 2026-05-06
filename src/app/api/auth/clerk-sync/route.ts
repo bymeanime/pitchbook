@@ -1,10 +1,18 @@
 import { db } from '@/lib/db'
-import { auth } from '@clerk/nextjs/server'
 import { createSessionToken } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 
 export async function POST() {
   try {
+    // Check if Clerk is configured
+    if (!process.env.CLERK_SECRET_KEY) {
+      return NextResponse.json(
+        { error: 'Clerk is not configured. Use custom auth (/api/auth/login) instead.' },
+        { status: 503 }
+      )
+    }
+
+    const { auth } = await import('@clerk/nextjs/server')
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: 'Not authenticated via Clerk' }, { status: 401 })
@@ -15,7 +23,6 @@ export async function POST() {
     let clerkName: string = 'Clerk User'
 
     try {
-      // Import dynamically to avoid issues if clerk backend is not fully available
       const { clerkClient } = await import('@clerk/nextjs/server')
       const client = await clerkClient()
       const clerkUser = await client.users.getUser(userId)

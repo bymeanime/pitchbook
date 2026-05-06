@@ -52,10 +52,11 @@ model Venue {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  owner    User     @relation(fields: [ownerId], references: [id])
-  courts   Court[]
-  reviews  Review[]
-  tournaments Tournament[]
+  owner         User          @relation(fields: [ownerId], references: [id])
+  courts        Court[]
+  reviews       Review[]
+  tournaments   Tournament[]
+  pricingRules  PricingRule[]
 }
 
 // ─── Courts / Playable Areas ─────────────────────────────
@@ -65,14 +66,15 @@ model Court {
   sport       String   // futsal, basketball, badminton, etc.
   surface     String?  // artificial_turf, hardwood, clay, concrete
   isIndoor    Boolean  @default(false)
-  pricePerHour Float   @default(0)
+  pricePerHour Float   @default(0) // base price per hour
   venueId     String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  venue       Venue    @relation(fields: [venueId], references: [id])
-  timeSlots   TimeSlot[]
-  bookings    Booking[]
+  venue         Venue         @relation(fields: [venueId], references: [id])
+  timeSlots     TimeSlot[]
+  bookings      Booking[]
+  pricingRules  PricingRule[]
 }
 
 // ─── Time Slots (Venue-defined availability) ────────────
@@ -81,7 +83,7 @@ model TimeSlot {
   dayOfWeek Int      // 0=Sunday, 1=Monday, ..., 6=Saturday
   startTime String   // "09:00"
   endTime   String   // "10:00"
-  price     Float?   // override court price if set
+  price     Float?   // override court base price if set (flat, before PricingRule)
   isActive  Boolean  @default(true)
   courtId   String
   createdAt DateTime @default(now())
@@ -90,16 +92,77 @@ model TimeSlot {
   court     Court    @relation(fields: [courtId], references: [id])
 }
 
+// ─── Pricing Rules (Dynamic Pricing) ────────────────────
+// Nepal venues have different rates for:
+//   - Time of day (morning/evening premium vs day)
+//   - Day of week (Saturdays, public holidays)
+//   - Specific dates (Dashain, Tihar, events)
+//
+// Price resolution order:
+//   1. PricingRule with flatPrice match  → use flatPrice
+//   2. PricingRule with priceMultiplier  → (timeSlot.price || court.pricePerHour) × multiplier
+//   3. TimeSlot.price                    → use if set
+//   4. Court.pricePerHour                → base fallback
+model PricingRule {
+  id          String   @id @default(cuid())
+  venueId     String
+  courtId     String?  // null = applies to ALL courts in this venue
+
+  name        String?  // "Saturday Premium", "Holiday Rate", "Morning Rush"
+
+  // ── Trigger conditions ──
+  // At least one must be set. Multiple conditions = AND (all must match).
+  date        String?  // specific date "2025-10-20" (for holidays, events)
+  dayOfWeek   Int?     // 0=Sun, 1=Mon, ..., 6=Sat
+  startTime   String?  // time-of-day window start "06:00"
+  endTime     String?  // time-of-day window end "09:00"
+
+  // ── Rule validity period ──
+  validFrom   String?  // rule active from date (inclusive)
+  validUntil  String?  // rule active until date (inclusive)
+
+  // ── Price effect (use ONE) ──
+  flatPrice       Float?  // exact price per hour (overrides everything)
+  priceMultiplier Float   @default(1.0) // multiply base price (e.g. 1.5 = 50% more)
+
+  // ── Ordering ──
+  priority    Int      @default(0) // higher = evaluated first
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  venue   Venue    @relation(fields: [venueId], references: [id])
+  court   Court?   @relation(fields: [courtId], references: [id])
+}
+
 // ─── Bookings ────────────────────────────────────────────
 model Booking {
   id            String    @id @default(cuid())
   date          String    // "2025-01-15" format
   startTime     String    // "09:00"
   endTime       String    // "10:00"
-  status        String    @default("pending") // pending, confirmed, cancelled, completed
-  totalPrice    Float
+  status        String    @default("pending") // pending, confirmed, rejected, cancelled, completed
+  totalPrice    Float     // price shown to / paid by customer
+  effectivePrice Float    // actual price after dynamic pricing rules
   platformFee   Float     // commission amount
   notes         String?
+
+  // ── Walk-in support ──
+  isWalkIn      Boolean   @default(false) // true = owner entered manually (walk-in)
+
+  // ── Confirmation flow ──
+  confirmedBy   String?   // userId of who confirmed (owner/admin)
+  confirmedAt   DateTime? // when confirmed
+  rejectedBy    String?   // userId of who rejected
+  rejectedAt    DateTime? // when rejected
+  rejectionReason String? // why rejected
+
+  // ── Cancellation flow ──
+  cancelledBy   String?   // userId of who cancelled
+  cancelledAt   DateTime? // when cancelled
+  cancellationReason String? // why cancelled
+
   courtId       String
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -128,7 +191,7 @@ model Payment {
   id            String    @id @default(cuid())
   bookingId     String
   amount        Float
-  method        String    @default("card") // card, cash, wallet
+  method        String    @default("cash") // card, cash, wallet — default cash for Nepal (pay-at-venue)
   status        String    @default("pending") // pending, completed, failed, refunded
   transactionId String?   // external payment gateway reference
   createdAt     DateTime  @default(now())

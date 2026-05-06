@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { parseSessionToken } from '@/lib/auth'
+import { calculatePrice } from '@/lib/pricing'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -75,11 +76,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'This time slot is already booked' }, { status: 409 })
     }
 
-    // Calculate price
-    const platformFee = Math.round(court.pricePerHour * (court.venue.commission / 100))
-    const totalPrice = court.pricePerHour
+    // ── Dynamic pricing calculation ──
+    const priceResult = await calculatePrice({
+      courtId,
+      venueId: court.venueId,
+      date,
+      startTime,
+      endTime,
+    })
 
-    // Create booking
+    const effectivePrice = priceResult.effectivePrice
+    const platformFee = Math.round(effectivePrice * (court.venue.commission / 100))
+    const totalPrice = effectivePrice
+
+    // ── Create booking as PENDING (owner must confirm) ──
+    // No prepayment — default is cash/pay-at-venue
     const booking = await db.booking.create({
       data: {
         courtId,
@@ -87,9 +98,11 @@ export async function POST(request: NextRequest) {
         startTime,
         endTime,
         totalPrice,
+        effectivePrice,
         platformFee,
         notes: notes || null,
-        status: 'confirmed'
+        status: 'pending', // Owner confirmation required
+        isWalkIn: false,
       }
     })
 
@@ -99,24 +112,25 @@ export async function POST(request: NextRequest) {
         userId: session.userId,
         bookingId: booking.id,
         amount: totalPrice,
-        status: 'paid'
+        status: 'pending', // Payment pending (pay at venue)
       }
     })
 
-    // Create payment record
+    // Create payment record — cash/pending (no prepayment in Nepal)
     await db.payment.create({
       data: {
         bookingId: booking.id,
         amount: totalPrice,
-        method: 'card',
-        status: 'completed'
+        method: 'cash',
+        status: 'pending', // Will be marked completed when paid at venue
       }
     })
 
     return NextResponse.json({
       ...booking,
       court,
-      venue: court.venue
+      venue: court.venue,
+      pricing: priceResult,
     }, { status: 201 })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })

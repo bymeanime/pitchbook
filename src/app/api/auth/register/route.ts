@@ -20,13 +20,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email already registered' }, { status: 409 })
     }
 
+    // Only allow 'player' role on self-registration.
+    // Admin and venue_owner roles must be assigned via the admin dashboard.
+    const allowedRoles = ['player']
+    if (process.env.SEED_SECRET && body.seedSecret === process.env.SEED_SECRET) {
+      // Seed mode: allow any role (used during initial setup only)
+      allowedRoles.push('venue_owner', 'admin')
+    }
+    const userRole = allowedRoles.includes(role) ? role : 'player'
+
     const hashedPassword = await hashPassword(password)
     const user = await db.user.create({
       data: {
         email,
         password: hashedPassword,
         name,
-        role: role || 'player',
+        role: userRole,
         phone: body.phone || null,
       }
     })

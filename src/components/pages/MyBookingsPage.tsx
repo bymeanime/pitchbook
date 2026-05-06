@@ -18,8 +18,18 @@ interface Booking {
   endTime: string
   status: string
   totalPrice: number
+  effectivePrice: number
   platformFee: number
   notes: string | null
+  isWalkIn: boolean
+  confirmedBy: string | null
+  confirmedAt: string | null
+  rejectedBy: string | null
+  rejectedAt: string | null
+  rejectionReason: string | null
+  cancelledBy: string | null
+  cancelledAt: string | null
+  cancellationReason: string | null
   courtId: string
   createdAt: string
   court: {
@@ -32,10 +42,11 @@ interface Booking {
 }
 
 const statusConfig: Record<string, { color: string; icon: any; label: string }> = {
-  pending: { color: 'bg-amber-100 text-amber-800', icon: AlertCircle, label: 'Pending' },
+  pending: { color: 'bg-amber-100 text-amber-800', icon: AlertCircle, label: 'Pending Approval' },
   confirmed: { color: 'bg-emerald-100 text-emerald-800', icon: CheckCircle, label: 'Confirmed' },
   completed: { color: 'bg-blue-100 text-blue-800', icon: CheckCircle, label: 'Completed' },
-  cancelled: { color: 'bg-red-100 text-red-800', icon: XCircle, label: 'Cancelled' },
+  cancelled: { color: 'bg-gray-100 text-gray-800', icon: XCircle, label: 'Cancelled' },
+  rejected: { color: 'bg-red-100 text-red-800', icon: XCircle, label: 'Rejected' },
 }
 
 export default function MyBookingsPage() {
@@ -99,7 +110,7 @@ export default function MyBookingsPage() {
 
       {/* Filters */}
       <div className="flex gap-2 mb-6 flex-wrap">
-        {['', 'confirmed', 'pending', 'completed', 'cancelled'].map(s => (
+        {['', 'pending', 'confirmed', 'completed', 'cancelled', 'rejected'].map(s => (
           <Button
             key={s || 'all'}
             variant={filter === s ? 'default' : 'outline'}
@@ -161,6 +172,9 @@ export default function MyBookingsPage() {
                     </div>
                     <div className="flex items-center gap-3 sm:flex-col sm:items-end">
                       <p className="text-lg font-bold text-primary">Rs {booking.totalPrice.toLocaleString()}</p>
+                      {booking.status === 'rejected' && booking.rejectionReason && (
+                        <p className="text-xs text-red-500 mb-1">Reason: {booking.rejectionReason}</p>
+                      )}
                       {(booking.status === 'pending' || booking.status === 'confirmed') && (
                         <Button variant="outline" size="sm" className="text-xs text-destructive hover:text-destructive" onClick={() => handleCancel(booking.id)}>
                           Cancel

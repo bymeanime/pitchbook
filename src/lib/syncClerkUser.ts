@@ -1,7 +1,15 @@
+// syncClerkUser.ts — Sync a Clerk user into our DB
+// NOTE: Clerk integration is deprecated in favor of custom auth.
+// This function will throw if Clerk is not configured.
+
 import { db } from './db'
-import { auth, clerkClient } from '@clerk/nextjs/server'
 
 export async function syncClerkUser(role: string = 'player') {
+  if (!process.env.CLERK_SECRET_KEY) {
+    throw new Error('Clerk is not configured. Use custom auth instead.')
+  }
+
+  const { auth, clerkClient } = await import('@clerk/nextjs/server')
   const { userId } = await auth()
   if (!userId) throw new Error('Not authenticated')
 

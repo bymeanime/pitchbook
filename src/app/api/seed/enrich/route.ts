@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       const existing = await db.booking.findFirst({ where: { courtId: court.id, date: b.date, startTime: b.start } })
       if (existing) continue
       const booking = await db.booking.create({
-        data: { courtId: court.id, date: b.date, startTime: b.start, endTime: b.end, status: b.status, totalPrice: court.pricePerHour, platformFee: Math.round(court.pricePerHour * 0.08) }
+        data: { courtId: court.id, date: b.date, startTime: b.start, endTime: b.end, status: b.status, totalPrice: court.pricePerHour, effectivePrice: court.pricePerHour, platformFee: Math.round(court.pricePerHour * 0.08) }
       })
       await db.bookingMember.create({ data: { userId: user.id, bookingId: booking.id, amount: court.pricePerHour, status: 'paid' } })
       await db.payment.create({ data: { bookingId: booking.id, amount: court.pricePerHour, method: 'card', status: b.status === 'cancelled' ? 'refunded' : 'completed' } })

@@ -2,7 +2,16 @@
 
 import { ClerkProvider } from '@clerk/nextjs'
 
+// Clerk is optional — if NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is not set,
+// the app uses custom auth only and ClerkProvider is skipped entirely.
+const CLERK_KEY = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+
 export default function AppClerkProvider({ children }: { children: React.ReactNode }) {
+  if (!CLERK_KEY) {
+    // No Clerk configured — pass through children without Clerk wrapper
+    return <>{children}</>
+  }
+
   return (
     <ClerkProvider
       appearance={{
