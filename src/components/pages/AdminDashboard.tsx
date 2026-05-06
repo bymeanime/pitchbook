@@ -4,12 +4,15 @@ import { useAppStore } from '@/store/useAppStore'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
 import {
   Shield, Users, Building2, Calendar, DollarSign, TrendingUp,
-  Trophy, Star, BarChart3, Activity
+  Trophy, Star, BarChart3, Activity, Search, Eye, EyeOff,
+  CheckCircle, XCircle, AlertCircle, UserCog, ToggleLeft
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 interface AdminStats {
   totalUsers: number
@@ -22,13 +25,64 @@ interface AdminStats {
   topVenues: any[]
 }
 
+interface AdminUser {
+  id: string
+  email: string
+  name: string
+  role: string
+  phone?: string
+  isVerified: boolean
+  createdAt: string
+  _count: { bookings: number; ownedVenues: number; reviews: number }
+}
+
+interface AdminVenue {
+  id: string
+  name: string
+  city: string
+  isOpen: boolean
+  rating: number
+  totalReviews: number
+  isFeatured: boolean
+  createdAt: string
+  owner: { id: string; name: string; email: string }
+  _count: { courts: number; bookings: number; reviews: number; tournaments: number }
+}
+
+interface AdminBooking {
+  id: string
+  date: string
+  startTime: string
+  endTime: string
+  status: string
+  totalPrice: number
+  platformFee: number
+  createdAt: string
+  court: { id: string; name: string; venue: { id: string; name: string; city: string } }
+  members: { id: string; userId: string; amount: number; status: string; user: { id: string; name: string; email: string } }[]
+}
+
+const statusConfig: Record<string, { color: string; icon: any }> = {
+  pending: { color: 'bg-amber-100 text-amber-800', icon: AlertCircle },
+  confirmed: { color: 'bg-emerald-100 text-emerald-800', icon: CheckCircle },
+  completed: { color: 'bg-blue-100 text-blue-800', icon: CheckCircle },
+  cancelled: { color: 'bg-red-100 text-red-800', icon: XCircle },
+}
+
 export default function AdminDashboard() {
   const { user, token } = useAppStore()
   const { toast } = useToast()
   const [stats, setStats] = useState<AdminStats | null>(null)
-  const isAdmin = user?.role === 'admin' && !!token
-  const loading = isAdmin && !stats
+  const [users, setUsers] = useState<AdminUser[]>([])
+  const [venues, setVenues] = useState<AdminVenue[]>([])
+  const [allBookings, setAllBookings] = useState<AdminBooking[]>([])
+  const [loading, setLoading] = useState(true)
+  const [bookingFilter, setBookingFilter] = useState('')
+  const [userSearch, setUserSearch] = useState('')
 
+  const isAdmin = user?.role === 'admin' && !!token
+
+  // Load stats
   useEffect(() => {
     if (!isAdmin) return
     fetch('/api/admin/stats', { headers: { 'Authorization': `Bearer ${token}` } })
@@ -38,9 +92,110 @@ export default function AdminDashboard() {
       })
       .then(data => setStats(data))
       .catch((err) => {
-        toast({ title: err.message || 'Failed to load', variant: 'destructive' })
+        toast({ title: err.message || 'Failed to load stats', variant: 'destructive' })
       })
   }, [isAdmin, token, toast])
+
+  // Load users
+  useEffect(() => {
+    if (!isAdmin) return
+    fetch('/api/admin/users', { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load users')
+        return res.json()
+      })
+      .then(data => setUsers(Array.isArray(data) ? data : []))
+      .catch(() => toast({ title: 'Failed to load users', variant: 'destructive' }))
+  }, [isAdmin, token, toast])
+
+  // Load venues
+  useEffect(() => {
+    if (!isAdmin) return
+    fetch('/api/admin/venues', { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load venues')
+        return res.json()
+      })
+      .then(data => setVenues(Array.isArray(data) ? data : []))
+      .catch(() => toast({ title: 'Failed to load venues', variant: 'destructive' }))
+  }, [isAdmin, token, toast])
+
+  // Load all bookings
+  useEffect(() => {
+    if (!isAdmin) return
+    fetch('/api/admin/bookings', { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load bookings')
+        return res.json()
+      })
+      .then(data => setAllBookings(Array.isArray(data) ? data : []))
+      .catch(() => toast({ title: 'Failed to load bookings', variant: 'destructive' }))
+      .finally(() => setLoading(false))
+  }, [isAdmin, token, toast])
+
+  // Toggle venue open/close
+  const handleToggleVenue = async (venueId: string, isOpen: boolean) => {
+    try {
+      const res = await fetch(`/api/venues/${venueId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ isOpen: !isOpen })
+      })
+      if (!res.ok) throw new Error('Failed to update venue')
+      setVenues(prev => prev.map(v => v.id === venueId ? { ...v, isOpen: !isOpen } : v))
+      toast({ title: `Venue ${!isOpen ? 'opened' : 'closed'}` })
+    } catch {
+      toast({ title: 'Failed to update venue', variant: 'destructive' })
+    }
+  }
+
+  // Toggle venue featured status
+  const handleToggleFeatured = async (venueId: string, isFeatured: boolean) => {
+    try {
+      const res = await fetch(`/api/venues/${venueId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ isFeatured: !isFeatured })
+      })
+      if (!res.ok) throw new Error('Failed to update venue')
+      setVenues(prev => prev.map(v => v.id === venueId ? { ...v, isFeatured: !isFeatured } : v))
+      toast({ title: `Venue ${!isFeatured ? 'featured' : 'unfeatured'}` })
+    } catch {
+      toast({ title: 'Failed to update venue', variant: 'destructive' })
+    }
+  }
+
+  // Update booking status
+  const handleUpdateBooking = async (bookingId: string, status: string) => {
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ status })
+      })
+      if (!res.ok) throw new Error('Failed to update booking')
+      setAllBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status } : b))
+      toast({ title: `Booking ${status}` })
+    } catch {
+      toast({ title: 'Failed to update booking', variant: 'destructive' })
+    }
+  }
+
+  // Update user role
+  const handleUpdateRole = async (userId: string, newRole: string) => {
+    try {
+      const res = await fetch(`/api/admin/users`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ userId, role: newRole })
+      })
+      if (!res.ok) throw new Error('Failed to update role')
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u))
+      toast({ title: `User role updated to ${newRole}` })
+    } catch {
+      toast({ title: 'Failed to update role', variant: 'destructive' })
+    }
+  }
 
   if (!user || user.role !== 'admin') {
     return (
@@ -64,6 +219,11 @@ export default function AdminDashboard() {
     )
   }
 
+  const filteredBookings = bookingFilter ? allBookings.filter(b => b.status === bookingFilter) : allBookings
+  const filteredUsers = userSearch
+    ? users.filter(u => u.name.toLowerCase().includes(userSearch.toLowerCase()) || u.email.toLowerCase().includes(userSearch.toLowerCase()))
+    : users
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="mb-6">
@@ -75,7 +235,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
         {[
           { label: 'Users', value: stats.totalUsers, icon: Users, color: 'text-blue-600 bg-blue-50' },
           { label: 'Venues', value: stats.totalVenues, icon: Building2, color: 'text-purple-600 bg-purple-50' },
@@ -96,92 +256,295 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Venues */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Star className="w-4 h-4 text-amber-500" /> Top Venues
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {stats.topVenues.map((venue: any, idx: number) => (
-              <div key={venue.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-sm text-primary">
-                    {idx + 1}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{venue.name}</p>
-                    <p className="text-xs text-muted-foreground">{venue.totalReviews} reviews</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                  <span className="text-sm font-semibold">{venue.rating}</span>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="bookings" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="bookings">Bookings</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="venues">Venues</TabsTrigger>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+        </TabsList>
 
-        {/* Recent Bookings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Activity className="w-4 h-4 text-primary" /> Recent Bookings
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 max-h-80 overflow-y-auto">
-            {stats.recentBookings.map((booking: any) => (
-              <div key={booking.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                <div>
-                  <p className="text-sm font-medium">
-                    {booking.members?.[0]?.user?.name || 'User'} → {booking.court?.venue?.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {booking.court?.name} • {booking.date} • {booking.startTime}-{booking.endTime}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold">Rs {booking.totalPrice}</p>
-                  <Badge variant="outline" className="text-[10px] capitalize">{booking.status}</Badge>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Revenue Summary */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-primary" /> Revenue Summary
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-5 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100/50 text-center">
-              <p className="text-3xl font-bold text-emerald-700">Rs {stats.totalRevenue.toLocaleString()}</p>
-              <p className="text-sm text-emerald-600 mt-1">Gross Merchandise Value</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Total booking value across platform</p>
+        {/* Bookings Tab */}
+        <TabsContent value="bookings" className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex gap-2">
+              {['', 'confirmed', 'pending', 'completed', 'cancelled'].map(s => (
+                <Button
+                  key={s || 'all'}
+                  variant={bookingFilter === s ? 'default' : 'outline'}
+                  size="sm"
+                  className="capitalize text-xs"
+                  onClick={() => setBookingFilter(s)}
+                >
+                  {s || 'All'}
+                </Button>
+              ))}
             </div>
-            <div className="p-5 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100/50 text-center">
-              <p className="text-3xl font-bold text-amber-700">Rs {stats.platformEarnings.toLocaleString()}</p>
-              <p className="text-sm text-amber-600 mt-1">Platform Earnings (8%)</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Commission from bookings</p>
-            </div>
-            <div className="p-5 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 text-center">
-              <p className="text-3xl font-bold text-blue-700">
-                {stats.totalBookings > 0 ? `Rs ${Math.round(stats.totalRevenue / stats.totalBookings).toLocaleString()}` : 'Rs 0'}
-              </p>
-              <p className="text-sm text-blue-600 mt-1">Avg. Booking Value</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Revenue per booking</p>
-            </div>
+            <span className="text-sm text-muted-foreground">{filteredBookings.length} bookings</span>
           </div>
-        </CardContent>
-      </Card>
+
+          <div className="space-y-2 max-h-[600px] overflow-y-auto">
+            {filteredBookings.map((booking) => {
+              const config = statusConfig[booking.status] || statusConfig.pending
+              const StatusIcon = config.icon
+              return (
+                <Card key={booking.id}>
+                  <CardContent className="p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <Calendar className="w-4 h-4 text-primary" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium">{booking.court?.name || 'Unknown'}</p>
+                            <Badge className={config.color} style={{ colorScheme: undefined }}>
+                              <StatusIcon className="w-3 h-3 mr-1" /> <span className="capitalize">{booking.status}</span>
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {booking.court?.venue?.name} • {booking.date} • {booking.startTime}-{booking.endTime}
+                          </p>
+                          {booking.members?.[0]?.user?.name && (
+                            <p className="text-xs text-muted-foreground">
+                              By: {booking.members[0].user.name} ({booking.members[0].user.email})
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 sm:flex-col sm:items-end">
+                        <p className="font-semibold text-sm">Rs {booking.totalPrice}</p>
+                        {booking.status === 'pending' && (
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="outline" className="h-7 text-xs text-emerald-600" onClick={() => handleUpdateBooking(booking.id, 'confirmed')}>
+                              <CheckCircle className="w-3 h-3 mr-1" /> Accept
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" onClick={() => handleUpdateBooking(booking.id, 'cancelled')}>
+                              <XCircle className="w-3 h-3 mr-1" /> Reject
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+            {filteredBookings.length === 0 && (
+              <p className="text-center text-muted-foreground py-8">No bookings found</p>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Users Tab */}
+        <TabsContent value="users" className="space-y-4">
+          <div className="flex items-center gap-2 max-w-sm">
+            <Search className="w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search users by name or email..."
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              className="h-9"
+            />
+          </div>
+
+          <div className="space-y-2 max-h-[600px] overflow-y-auto">
+            {filteredUsers.map((u) => (
+              <Card key={u.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-sm font-bold text-primary">{u.name.charAt(0).toUpperCase()}</span>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium">{u.name}</p>
+                          <Badge variant="outline" className="text-[10px] capitalize">{u.role.replace('_', ' ')}</Badge>
+                          {u.isVerified && <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Verified</Badge>}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {u._count.bookings} bookings • {u._count.ownedVenues} venues • {u._count.reviews} reviews
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {u.role !== 'admin' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={() => handleUpdateRole(u.id, u.role === 'player' ? 'venue_owner' : 'player')}
+                        >
+                          <UserCog className="w-3 h-3 mr-1" />
+                          Make {u.role === 'player' ? 'Owner' : 'Player'}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {filteredUsers.length === 0 && (
+              <p className="text-center text-muted-foreground py-8">No users found</p>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Venues Tab */}
+        <TabsContent value="venues" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {venues.map((venue) => (
+              <Card key={venue.id}>
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold">{venue.name}</h3>
+                        {venue.isFeatured && <Badge className="bg-amber-500 text-white text-[10px]">Featured</Badge>}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{venue.city} • Owner: {venue.owner.name}</p>
+                    </div>
+                    <Badge variant={venue.isOpen ? 'default' : 'secondary'} className="text-xs">
+                      {venue.isOpen ? 'Open' : 'Closed'}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 text-center mb-3">
+                    <div className="p-2 rounded bg-muted/50">
+                      <p className="text-sm font-bold">{venue._count.courts}</p>
+                      <p className="text-[10px] text-muted-foreground">Courts</p>
+                    </div>
+                    <div className="p-2 rounded bg-muted/50">
+                      <p className="text-sm font-bold">{venue._count.bookings}</p>
+                      <p className="text-[10px] text-muted-foreground">Bookings</p>
+                    </div>
+                    <div className="p-2 rounded bg-muted/50">
+                      <p className="text-sm font-bold">{venue._count.reviews}</p>
+                      <p className="text-[10px] text-muted-foreground">Reviews</p>
+                    </div>
+                    <div className="p-2 rounded bg-muted/50">
+                      <div className="flex items-center justify-center gap-0.5">
+                        <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                        <p className="text-sm font-bold">{venue.rating}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 h-8 text-xs"
+                      onClick={() => handleToggleVenue(venue.id, venue.isOpen)}
+                    >
+                      {venue.isOpen ? <><EyeOff className="w-3 h-3 mr-1" /> Close</> : <><Eye className="w-3 h-3 mr-1" /> Open</>}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => handleToggleFeatured(venue.id, venue.isFeatured)}
+                    >
+                      <Star className="w-3 h-3 mr-1" />
+                      {venue.isFeatured ? 'Unfeature' : 'Feature'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Top Venues */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Star className="w-4 h-4 text-amber-500" /> Top Venues
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {stats.topVenues.map((venue: any, idx: number) => (
+                  <div key={venue.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-sm text-primary">
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{venue.name}</p>
+                        <p className="text-xs text-muted-foreground">{venue.totalReviews} reviews</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                      <span className="text-sm font-semibold">{venue.rating}</span>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Recent Bookings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-primary" /> Recent Bookings
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 max-h-80 overflow-y-auto">
+                {stats.recentBookings.map((booking: any) => (
+                  <div key={booking.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <div>
+                      <p className="text-sm font-medium">
+                        {booking.members?.[0]?.user?.name || 'User'} → {booking.court?.venue?.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {booking.court?.name} • {booking.date} • {booking.startTime}-{booking.endTime}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold">Rs {booking.totalPrice}</p>
+                      <Badge variant="outline" className="text-[10px] capitalize">{booking.status}</Badge>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Revenue Summary */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-primary" /> Revenue Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-5 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100/50 text-center">
+                  <p className="text-3xl font-bold text-emerald-700">Rs {stats.totalRevenue.toLocaleString()}</p>
+                  <p className="text-sm text-emerald-600 mt-1">Gross Merchandise Value</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Total booking value across platform</p>
+                </div>
+                <div className="p-5 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100/50 text-center">
+                  <p className="text-3xl font-bold text-amber-700">Rs {stats.platformEarnings.toLocaleString()}</p>
+                  <p className="text-sm text-amber-600 mt-1">Platform Earnings (8%)</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Commission from bookings</p>
+                </div>
+                <div className="p-5 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 text-center">
+                  <p className="text-3xl font-bold text-blue-700">
+                    {stats.totalBookings > 0 ? `Rs ${Math.round(stats.totalRevenue / stats.totalBookings).toLocaleString()}` : 'Rs 0'}
+                  </p>
+                  <p className="text-sm text-blue-600 mt-1">Avg. Booking Value</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Revenue per booking</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast'
 import {
   MapPin, Star, Clock, Phone, Mail, Globe, ChevronLeft,
   Calendar, Check, X as XIcon, Users, Shield, Car, Wifi,
-  Coffee, ShowerHead, Zap, Sun, Moon, Award
+  Coffee, ShowerHead, Zap, Sun, Moon, Award, Ban
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -72,6 +72,15 @@ interface Venue {
   _count?: { tournaments: number }
 }
 
+interface BookedSlot {
+  id: string
+  startTime: string
+  endTime: string
+  status: string
+  courtName?: string
+  userName?: string
+}
+
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const amenityIcons: Record<string, any> = {
   parking: Car, wifi: Wifi, showers: ShowerHead, cafe: Coffee,
@@ -89,6 +98,8 @@ export default function VenueDetailPage() {
   const [bookingNotes, setBookingNotes] = useState('')
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'info' | 'courts' | 'reviews'>('info')
+  const [bookedSlots, setBookedSlots] = useState<BookedSlot[]>([])
+  const [loadingBookings, setLoadingBookings] = useState(false)
 
   useEffect(() => {
     if (!selectedVenueId) return
@@ -110,6 +121,30 @@ export default function VenueDetailPage() {
     const today = new Date().toLocaleDateString('en-CA')
     setSelectedDate(today)
   }, [])
+
+  // Fetch booked slots for the selected court and date
+  useEffect(() => {
+    if (!selectedCourt || !selectedDate) {
+      setBookedSlots([])
+      return
+    }
+    setLoadingBookings(true)
+    fetch(`/api/venues/${selectedVenueId}/bookings?courtId=${selectedCourt.id}&date=${selectedDate}`)
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch bookings')
+        return res.json()
+      })
+      .then(data => {
+        setBookedSlots(Array.isArray(data) ? data : [])
+      })
+      .catch(() => setBookedSlots([]))
+      .finally(() => setLoadingBookings(false))
+  }, [selectedCourt, selectedDate, selectedVenueId])
+
+  // Reset selected slot when court or date changes
+  useEffect(() => {
+    setSelectedSlot(null)
+  }, [selectedCourt, selectedDate])
 
   if (loading || !venue) {
     return (
@@ -135,6 +170,13 @@ export default function VenueDetailPage() {
 
   const venueSports: string[] = safeJsonParse(venue.sports)
   const venueAmenities: string[] = safeJsonParse(venue.amenities)
+
+  // Check if a time slot is booked
+  const isSlotBooked = (startTime: string, endTime: string) => {
+    return bookedSlots.some(
+      b => b.status !== 'cancelled' && b.startTime === startTime && b.endTime === endTime
+    )
+  }
 
   const getAvailableSlots = () => {
     if (!selectedCourt || !selectedDate) return []
@@ -176,6 +218,12 @@ export default function VenueDetailPage() {
       setBookingDialogOpen(false)
       setSelectedSlot(null)
       setBookingNotes('')
+      // Re-fetch booked slots to update the UI
+      const bookingsRes = await fetch(`/api/venues/${selectedVenueId}/bookings?courtId=${selectedCourt.id}&date=${selectedDate}`)
+      if (bookingsRes.ok) {
+        const data = await bookingsRes.json()
+        setBookedSlots(Array.isArray(data) ? data : [])
+      }
     } catch (err: any) {
       toast({ title: err.message, variant: 'destructive' })
     }
@@ -388,22 +436,48 @@ export default function VenueDetailPage() {
                 {selectedCourt && availableSlots.length > 0 && (
                   <div>
                     <Label className="text-xs mb-2 block">
-                      Available Slots ({DAY_NAMES[new Date(selectedDate).getDay()]}, {selectedDate})
+                      Time Slots ({DAY_NAMES[new Date(selectedDate).getDay()]}, {selectedDate})
                     </Label>
-                    <div className="grid grid-cols-3 gap-1.5 max-h-48 overflow-y-auto">
-                      {availableSlots.map((slot) => (
-                        <button
-                          key={slot.id}
-                          onClick={() => setSelectedSlot({ start: slot.startTime, end: slot.endTime })}
-                          className={`text-xs p-2 rounded-lg border transition-all ${
-                            selectedSlot?.start === slot.startTime
-                              ? 'bg-primary text-primary-foreground border-primary'
-                              : 'hover:bg-accent hover:border-primary/30'
-                          }`}
-                        >
-                          {slot.startTime} - {slot.endTime}
-                        </button>
-                      ))}
+                    <div className="grid grid-cols-3 gap-1.5 max-h-56 overflow-y-auto">
+                      {availableSlots.map((slot) => {
+                        const booked = isSlotBooked(slot.startTime, slot.endTime)
+                        const isSelected = selectedSlot?.start === slot.startTime
+                        return (
+                          <button
+                            key={slot.id}
+                            disabled={booked}
+                            onClick={() => !booked && setSelectedSlot({ start: slot.startTime, end: slot.endTime })}
+                            className={`text-xs p-2 rounded-lg border transition-all flex items-center justify-center gap-1 ${
+                              booked
+                                ? 'bg-red-100 text-red-700 border-red-300 cursor-not-allowed line-through'
+                                : isSelected
+                                  ? 'bg-primary text-primary-foreground border-primary'
+                                  : 'hover:bg-accent hover:border-primary/30'
+                            }`}
+                            title={booked ? 'Already booked' : `Book ${slot.startTime}-${slot.endTime}`}
+                          >
+                            {booked ? (
+                              <>
+                                <Ban className="w-3 h-3 flex-shrink-0" />
+                                <span>{slot.startTime}-{slot.endTime}</span>
+                              </>
+                            ) : (
+                              <span>{slot.startTime}-{slot.endTime}</span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {/* Legend */}
+                    <div className="flex items-center gap-4 mt-2 text-[10px] text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <span className="w-3 h-3 rounded bg-primary/20 border border-primary/30" />
+                        Available
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-3 h-3 rounded bg-red-100 border border-red-300" />
+                        Booked
+                      </span>
                     </div>
                   </div>
                 )}

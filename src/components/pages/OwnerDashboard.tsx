@@ -85,10 +85,12 @@ export default function OwnerDashboard() {
     )
   }
 
-  const filteredBookings = bookingFilter ? bookings.filter(b => b.status === bookingFilter) : bookings
-  const totalBookings = bookings.length
-  const confirmedBookings = bookings.filter(b => b.status === 'confirmed' || b.status === 'completed').length
-  const totalPlatformFees = bookings.reduce((sum, b) => sum + b.platformFee, 0)
+  const safeBookings = Array.isArray(bookings) ? bookings : []
+  const filteredBookings = bookingFilter ? safeBookings.filter(b => b.status === bookingFilter) : safeBookings
+  const totalBookings = safeBookings.length
+  const confirmedBookings = safeBookings.filter(b => b.status === 'confirmed' || b.status === 'completed').length
+  const totalPlatformFees = safeBookings.reduce((sum, b) => sum + (b.platformFee || 0), 0)
+  const safeVenues = Array.isArray(venues) ? venues : []
 
   const statusConfig: Record<string, { color: string; icon: any }> = {
     pending: { color: 'bg-amber-100 text-amber-800', icon: AlertCircle },
@@ -140,7 +142,7 @@ export default function OwnerDashboard() {
           { label: 'Total Revenue', value: `Rs ${totalRevenue.toLocaleString()}`, icon: DollarSign, color: 'text-emerald-600 bg-emerald-50' },
           { label: 'Total Bookings', value: totalBookings.toString(), icon: Calendar, color: 'text-blue-600 bg-blue-50' },
           { label: 'Platform Fees', value: `Rs ${totalPlatformFees.toLocaleString()}`, icon: TrendingUp, color: 'text-amber-600 bg-amber-50' },
-          { label: 'Venues', value: venues.length.toString(), icon: Building2, color: 'text-purple-600 bg-purple-50' },
+          { label: 'Venues', value: safeVenues.length.toString(), icon: Building2, color: 'text-purple-600 bg-purple-50' },
         ].map(({ label, value, icon: Icon, color }) => (
           <Card key={label}>
             <CardContent className="p-4 flex items-center gap-3">
@@ -237,7 +239,7 @@ export default function OwnerDashboard() {
         {/* Venues Tab */}
         <TabsContent value="venues" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {venues.map((venue) => (
+            {safeVenues.map((venue) => (
               <Card key={venue.id}>
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between mb-3">
@@ -251,23 +253,23 @@ export default function OwnerDashboard() {
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-center mb-3">
                     <div className="p-2 rounded bg-muted/50">
-                      <p className="text-lg font-bold">{venue.courts.reduce((sum, c) => sum + c._count.bookings, 0)}</p>
+                      <p className="text-lg font-bold">{(venue.courts || []).reduce((sum, c) => sum + (c._count?.bookings || 0), 0)}</p>
                       <p className="text-[10px] text-muted-foreground">Bookings</p>
                     </div>
                     <div className="p-2 rounded bg-muted/50">
-                      <p className="text-lg font-bold">{venue._count.reviews}</p>
+                      <p className="text-lg font-bold">{venue._count?.reviews || 0}</p>
                       <p className="text-[10px] text-muted-foreground">Reviews</p>
                     </div>
                     <div className="p-2 rounded bg-muted/50">
                       <div className="flex items-center justify-center gap-0.5">
                         <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                        <p className="text-lg font-bold">{venue.rating}</p>
+                        <p className="text-lg font-bold">{venue.rating || 0}</p>
                       </div>
                       <p className="text-[10px] text-muted-foreground">Rating</p>
                     </div>
                   </div>
                   <div className="text-xs text-muted-foreground mb-3">
-                    {venue.courts.length} courts: {venue.courts.map(c => c.name).join(', ')}
+                    {(venue.courts || []).length} courts: {(venue.courts || []).map(c => c.name).join(', ')}
                   </div>
                   <Button
                     variant="outline"

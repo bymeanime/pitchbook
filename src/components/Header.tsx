@@ -39,6 +39,9 @@ export default function Header() {
   const displayEmail = clerkUser?.emailAddresses?.[0]?.emailAddress || user?.email || ''
   const isLoggedIn = isSignedIn || !!user
 
+  // Determine the actual role (from our custom auth store)
+  const role = user?.role || 'player'
+
   return (
     <header className={`sticky top-0 z-50 w-full transition-all duration-300 ${scrolled ? 'bg-background/95 backdrop-blur-md shadow-sm border-b' : 'bg-transparent'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -70,25 +73,34 @@ export default function Header() {
 
             {isLoggedIn && (
               <>
-                <Button
-                  variant={currentPage === 'my-bookings' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => navigate('my-bookings')}
-                  className="gap-2"
-                >
-                  <Calendar className="w-4 h-4" />
-                  <span className="hidden lg:inline">My Bookings</span>
-                </Button>
-                <Button
-                  variant={currentPage === 'profile' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => navigate('profile')}
-                  className="gap-2"
-                >
-                  <User className="w-4 h-4" />
-                  <span className="hidden lg:inline">Profile</span>
-                </Button>
-                {(user?.role === 'venue_owner' || user?.role === 'admin') && (
+                {/* My Bookings — ONLY for players */}
+                {role === 'player' && (
+                  <Button
+                    variant={currentPage === 'my-bookings' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => navigate('my-bookings')}
+                    className="gap-2"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    <span className="hidden lg:inline">My Bookings</span>
+                  </Button>
+                )}
+
+                {/* Profile — only for players */}
+                {role === 'player' && (
+                  <Button
+                    variant={currentPage === 'profile' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => navigate('profile')}
+                    className="gap-2"
+                  >
+                    <User className="w-4 h-4" />
+                    <span className="hidden lg:inline">Profile</span>
+                  </Button>
+                )}
+
+                {/* Owner Dashboard — only for venue_owner */}
+                {role === 'venue_owner' && (
                   <Button
                     variant={currentPage === 'owner-dashboard' ? 'secondary' : 'ghost'}
                     size="sm"
@@ -96,10 +108,12 @@ export default function Header() {
                     className="gap-2"
                   >
                     <LayoutDashboard className="w-4 h-4" />
-                    Dashboard
+                    <span className="hidden lg:inline">Dashboard</span>
                   </Button>
                 )}
-                {user?.role === 'admin' && (
+
+                {/* Admin — only for admin */}
+                {role === 'admin' && (
                   <Button
                     variant={currentPage === 'admin-dashboard' ? 'secondary' : 'ghost'}
                     size="sm"
@@ -107,7 +121,7 @@ export default function Header() {
                     className="gap-2"
                   >
                     <Shield className="w-4 h-4" />
-                    Admin
+                    <span className="hidden lg:inline">Admin</span>
                   </Button>
                 )}
               </>
@@ -135,13 +149,38 @@ export default function Header() {
                         <p className="text-sm font-medium">{displayName}</p>
                         <p className="text-xs text-muted-foreground">{displayEmail}</p>
                         <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">
-                          {user.role.replace('_', ' ')}
+                          {role.replace('_', ' ')}
                         </span>
                       </div>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => navigate('my-bookings')}>
-                        <Calendar className="w-4 h-4 mr-2" /> My Bookings
-                      </DropdownMenuItem>
+                      {/* Player items */}
+                      {role === 'player' && (
+                        <>
+                          <DropdownMenuItem onClick={() => navigate('my-bookings')}>
+                            <Calendar className="w-4 h-4 mr-2" /> My Bookings
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate('profile')}>
+                            <User className="w-4 h-4 mr-2" /> My Profile
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      {/* Venue Owner items */}
+                      {role === 'venue_owner' && (
+                        <DropdownMenuItem onClick={() => navigate('owner-dashboard')}>
+                          <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
+                        </DropdownMenuItem>
+                      )}
+                      {/* Admin items */}
+                      {role === 'admin' && (
+                        <>
+                          <DropdownMenuItem onClick={() => navigate('admin-dashboard')}>
+                            <Shield className="w-4 h-4 mr-2" /> Admin Panel
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate('owner-dashboard')}>
+                            <LayoutDashboard className="w-4 h-4 mr-2" /> All Venues
+                          </DropdownMenuItem>
+                        </>
+                      )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={logout} className="text-destructive">
                         <LogOut className="w-4 h-4 mr-2" /> Logout
@@ -174,20 +213,37 @@ export default function Header() {
                     <p className="text-sm font-medium">{user.name}</p>
                     <p className="text-xs text-muted-foreground">{user.email}</p>
                     <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">
-                      {user.role.replace('_', ' ')}
+                      {role.replace('_', ' ')}
                     </span>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('my-bookings')}>
-                    <Calendar className="w-4 h-4 mr-2" /> My Bookings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('profile')}>
-                    <User className="w-4 h-4 mr-2" /> My Profile
-                  </DropdownMenuItem>
-                  {(user.role === 'venue_owner' || user.role === 'admin') && (
+                  {/* Player items */}
+                  {role === 'player' && (
+                    <>
+                      <DropdownMenuItem onClick={() => navigate('my-bookings')}>
+                        <Calendar className="w-4 h-4 mr-2" /> My Bookings
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate('profile')}>
+                        <User className="w-4 h-4 mr-2" /> My Profile
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {/* Venue Owner items */}
+                  {role === 'venue_owner' && (
                     <DropdownMenuItem onClick={() => navigate('owner-dashboard')}>
                       <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
                     </DropdownMenuItem>
+                  )}
+                  {/* Admin items */}
+                  {role === 'admin' && (
+                    <>
+                      <DropdownMenuItem onClick={() => navigate('admin-dashboard')}>
+                        <Shield className="w-4 h-4 mr-2" /> Admin Panel
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate('owner-dashboard')}>
+                        <LayoutDashboard className="w-4 h-4 mr-2" /> All Venues
+                      </DropdownMenuItem>
+                    </>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={logout} className="text-destructive">
@@ -238,18 +294,33 @@ export default function Header() {
             ))}
             {isLoggedIn && (
               <>
-                <Button variant="ghost" className="w-full justify-start gap-3" onClick={() => { navigate('my-bookings'); setMobileOpen(false) }}>
-                  <Calendar className="w-4 h-4" /> My Bookings
-                </Button>
-                {(user?.role === 'venue_owner' || user?.role === 'admin') && (
+                {/* Player items */}
+                {role === 'player' && (
+                  <>
+                    <Button variant="ghost" className="w-full justify-start gap-3" onClick={() => { navigate('my-bookings'); setMobileOpen(false) }}>
+                      <Calendar className="w-4 h-4" /> My Bookings
+                    </Button>
+                    <Button variant="ghost" className="w-full justify-start gap-3" onClick={() => { navigate('profile'); setMobileOpen(false) }}>
+                      <User className="w-4 h-4" /> Profile
+                    </Button>
+                  </>
+                )}
+                {/* Venue Owner items */}
+                {role === 'venue_owner' && (
                   <Button variant="ghost" className="w-full justify-start gap-3" onClick={() => { navigate('owner-dashboard'); setMobileOpen(false) }}>
                     <LayoutDashboard className="w-4 h-4" /> Dashboard
                   </Button>
                 )}
-                {user?.role === 'admin' && (
-                  <Button variant="ghost" className="w-full justify-start gap-3" onClick={() => { navigate('admin-dashboard'); setMobileOpen(false) }}>
-                    <Shield className="w-4 h-4" /> Admin Panel
-                  </Button>
+                {/* Admin items */}
+                {role === 'admin' && (
+                  <>
+                    <Button variant="ghost" className="w-full justify-start gap-3" onClick={() => { navigate('admin-dashboard'); setMobileOpen(false) }}>
+                      <Shield className="w-4 h-4" /> Admin Panel
+                    </Button>
+                    <Button variant="ghost" className="w-full justify-start gap-3" onClick={() => { navigate('owner-dashboard'); setMobileOpen(false) }}>
+                      <LayoutDashboard className="w-4 h-4" /> All Venues
+                    </Button>
+                  </>
                 )}
               </>
             )}

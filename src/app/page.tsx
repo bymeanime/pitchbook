@@ -17,7 +17,7 @@ import { useUser } from '@clerk/nextjs'
 import { useEffect } from 'react'
 
 export default function App() {
-  const { currentPage, user, token, setAuth } = useAppStore()
+  const { currentPage, user, token, setAuth, navigate } = useAppStore()
   const { isSignedIn, isLoaded } = useUser()
 
   // Restore custom auth from localStorage on mount
@@ -52,6 +52,9 @@ export default function App() {
         })
         .then(data => {
           setAuth(data.user, data.token)
+          // Auto-navigate to appropriate dashboard based on role
+          if (data.user.role === 'admin') navigate('admin-dashboard')
+          else if (data.user.role === 'venue_owner') navigate('owner-dashboard')
         })
         .catch(() => {
           // Sync failed — user can still browse but can't book
@@ -65,7 +68,7 @@ export default function App() {
         localStorage.removeItem('pb_token')
       }
     }
-  }, [isSignedIn, isLoaded, user, setAuth])
+  }, [isSignedIn, isLoaded, user, setAuth, navigate])
 
   const renderPage = () => {
     switch (currentPage) {

@@ -10,17 +10,39 @@ export async function POST() {
       return NextResponse.json({ error: 'Not authenticated via Clerk' }, { status: 401 })
     }
 
-    // Check if user already exists in our DB
-    let user = await db.user.findUnique({ where: { id: userId } })
+    // Try to get the Clerk user's email address to match against existing seed users
+    let clerkEmail: string | null = null
+    let clerkName: string = 'Clerk User'
+
+    try {
+      // Import dynamically to avoid issues if clerk backend is not fully available
+      const { clerkClient } = await import('@clerk/nextjs/server')
+      const client = await clerkClient()
+      const clerkUser = await client.users.getUser(userId)
+      clerkEmail = clerkUser.emailAddresses?.[0]?.emailAddress || null
+      clerkName = clerkUser.fullName || clerkUser.username || clerkName
+    } catch {
+      // If we can't fetch Clerk user details, fall back to creating a new user
+    }
+
+    // Check if an existing user in our DB matches this Clerk user's email
+    let user: any = null
+    if (clerkEmail) {
+      user = await db.user.findUnique({ where: { email: clerkEmail } })
+    }
+
+    // If no match by email, check by Clerk userId (for previously synced Clerk users)
+    if (!user) {
+      user = await db.user.findUnique({ where: { id: userId } })
+    }
 
     if (!user) {
-      // Create user with Clerk's ID as the primary key
-      // The email/name will be filled from Clerk user profile if available
+      // Create a new user — link by Clerk userId, use Clerk email if available
       user = await db.user.create({
         data: {
           id: userId,
-          email: `clerk_${userId.slice(0, 8)}@pitchbook.local`,
-          name: 'Clerk User',
+          email: clerkEmail || `clerk_${userId.slice(0, 8)}@pitchbook.local`,
+          name: clerkName,
           role: 'player',
           password: '', // Clerk handles authentication
           isVerified: true,
