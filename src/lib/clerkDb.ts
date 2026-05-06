@@ -4,8 +4,8 @@ export { db as clerkDb } from './db'
 import { auth } from '@clerk/nextjs/server'
 import { db } from './db'
 
-export function getAuthenticatedDb() {
-  const { userId } = auth()
+export async function getAuthenticatedDb() {
+  const { userId } = await auth()
   if (!userId) throw new Error('Unauthorized')
   return db
 }

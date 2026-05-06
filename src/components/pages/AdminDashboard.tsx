@@ -108,7 +108,7 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <p className="text-sm font-medium">{venue.name}</p>
-                    <p className="text-xs text-muted-foreground">{venue._count.bookings} bookings • {venue._count.reviews} reviews</p>
+                    <p className="text-xs text-muted-foreground">{venue.totalReviews} reviews</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">

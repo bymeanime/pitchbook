@@ -150,7 +150,6 @@ export default function Header() {
                   </DropdownMenu>
                 )}
                 <UserButton
-                  afterSignOutUrl="/"
                   appearance={{
                     elements: {
                       avatarBox: "w-9 h-9",

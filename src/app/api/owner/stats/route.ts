@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       where: { ownerId: session.userId },
       include: {
         courts: { include: { _count: { select: { bookings: true } } } },
-        _count: { select: { bookings: true, reviews: true, tournaments: true } }
+        _count: { select: { reviews: true, tournaments: true } }
       }
     })
 

@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
             }
           }
         },
-        _count: { select: { bookings: true, reviews: true, tournaments: true } }
+        _count: { select: { reviews: true, tournaments: true } }
       }
     })
 

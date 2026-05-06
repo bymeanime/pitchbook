@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     const topVenues = await db.venue.findMany({
       take: 5,
       orderBy: { totalReviews: 'desc' },
-      include: { _count: { select: { bookings: true, reviews: true } } }
+      include: { _count: { select: { reviews: true } } }
     })
 
     return NextResponse.json({

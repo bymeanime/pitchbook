@@ -64,11 +64,12 @@ interface Venue {
   totalReviews: number
   isFeatured: boolean
   commission: number
+  images?: string
   owner: { id: string; name: string; email: string; phone: string | null }
   courts: Court[]
   reviews: Review[]
   tournaments: any[]
-  _count?: { bookings: number; tournaments: number }
+  _count?: { tournaments: number }
 }
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -93,7 +94,10 @@ export default function VenueDetailPage() {
     if (!selectedVenueId) return
     setLoading(true)
     fetch(`/api/venues/${selectedVenueId}`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`Failed to load venue (${res.status})`)
+        return res.json()
+      })
       .then(data => {
         setVenue(data)
         if (data.courts?.length > 0) setSelectedCourt(data.courts[0])
@@ -224,7 +228,7 @@ export default function VenueDetailPage() {
                   </div>
                   <div className="flex items-center gap-1">
                     <Calendar className="w-4 h-4" />
-                    <span>{venue._count?.bookings || 0} bookings</span>
+                    <span>{venue.courts.length} court{venue.courts.length !== 1 ? 's' : ''}</span>
                   </div>
                 </div>
               </div>
@@ -252,7 +256,7 @@ export default function VenueDetailPage() {
                     </div>
                     <div className="flex items-center gap-1 text-muted-foreground">
                       <Calendar className="w-4 h-4" />
-                      <span>{venue._count?.bookings || 0} bookings</span>
+                      <span>{venue.courts.length} court{venue.courts.length !== 1 ? 's' : ''}</span>
                     </div>
                   </div>
                 </div>

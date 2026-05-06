@@ -18,7 +18,7 @@ import { useState, useEffect } from 'react'
 interface VenueStat {
   id: string; name: string; city: string; isOpen: boolean; rating: number; totalReviews: number;
   courts: { id: string; name: string; sport: string; _count: { bookings: number } }[]
-  _count: { bookings: number; reviews: number; tournaments: number }
+  _count: { reviews: number; tournaments: number }
 }
 
 interface OwnerBooking {
@@ -241,7 +241,7 @@ export default function OwnerDashboard() {
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-center mb-3">
                     <div className="p-2 rounded bg-muted/50">
-                      <p className="text-lg font-bold">{venue._count.bookings}</p>
+                      <p className="text-lg font-bold">{venue.courts.reduce((sum, c) => sum + c._count.bookings, 0)}</p>
                       <p className="text-[10px] text-muted-foreground">Bookings</p>
                     </div>
                     <div className="p-2 rounded bg-muted/50">

@@ -27,7 +27,8 @@ interface Venue {
   isFeatured: boolean
   courts: { id: string; name: string; sport: string; pricePerHour: number; isIndoor: boolean }[]
   description?: string
-  _count?: { reviews: number; bookings: number; tournaments: number }
+  images?: string
+  _count?: { reviews: number }
 }
 
 export default function VenuesPage() {

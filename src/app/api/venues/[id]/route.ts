@@ -24,7 +24,7 @@ export async function GET(
           orderBy: { startDate: 'desc' },
           take: 10
         },
-        _count: { select: { bookings: true, tournaments: true } }
+        _count: { select: { tournaments: true } }
       }
     })
 

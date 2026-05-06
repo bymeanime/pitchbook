@@ -39,6 +39,7 @@ interface Venue {
   courts: { sport: string; pricePerHour: number }[]
   description?: string
   address?: string
+  images?: string
 }
 
 export default function HomePage() {
