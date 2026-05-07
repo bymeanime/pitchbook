@@ -18,6 +18,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Too many login attempts. Please try again in a minute.' }, { status: 429 })
     }
 
+    // Verify database connection
+    try {
+      await db.$queryRaw`SELECT 1`
+    } catch (dbError: any) {
+      console.error('[Auth] Database connection failed:', dbError?.message)
+      return NextResponse.json(
+        { error: 'Database connection failed. Please check DATABASE_URL environment variable.' },
+        { status: 503 }
+      )
+    }
+
     const user = await db.user.findUnique({ where: { email } })
     if (!user) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
@@ -36,6 +47,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[Auth] Login error:', error)
-    return NextResponse.json({ error: 'Login failed. Please try again.' }, { status: 500 })
+    const msg = error instanceof Error ? error.message : 'Login failed. Please try again.'
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

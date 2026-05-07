@@ -1,14 +1,16 @@
 import bcrypt from 'bcryptjs'
 import { SignJWT, jwtVerify } from 'jose'
 
-const JWT_SECRET = process.env.JWT_SECRET
-if (!JWT_SECRET) {
-  throw new Error(
-    'JWT_SECRET environment variable is required. ' +
-    'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
-  )
+function getSecretKey(): Uint8Array {
+  const JWT_SECRET = process.env.JWT_SECRET
+  if (!JWT_SECRET) {
+    throw new Error(
+      'JWT_SECRET environment variable is required. ' +
+      'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
+    )
+  }
+  return new TextEncoder().encode(JWT_SECRET)
 }
-const secretKey = new TextEncoder().encode(JWT_SECRET)
 
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 12)
@@ -19,6 +21,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 }
 
 export async function createSessionToken(userId: string, role: string): Promise<string> {
+  const secretKey = getSecretKey()
   const token = await new SignJWT({ userId, role })
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime('7d')
@@ -29,6 +32,7 @@ export async function createSessionToken(userId: string, role: string): Promise<
 
 export async function parseSessionToken(token: string): Promise<{ userId: string; role: string; exp: number } | null> {
   try {
+    const secretKey = getSecretKey()
     const { payload } = await jwtVerify(token, secretKey)
     const { userId, role, exp } = payload
     if (typeof userId !== 'string' || typeof role !== 'string' || typeof exp !== 'number') {

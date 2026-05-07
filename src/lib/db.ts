@@ -9,7 +9,15 @@ function createPrismaClient() {
   if (!connectionString) {
     throw new Error(
       'DATABASE_URL environment variable is required but not set. ' +
-      'Please add it to your .env.local file or Vercel environment variables.'
+      'Please add it to your .env.local file or Vercel environment variables. ' +
+      'Format: postgresql://user:password@host:5432/database'
+    )
+  }
+
+  // Validate URL format before passing to Prisma
+  if (!connectionString.startsWith('postgresql://') && !connectionString.startsWith('postgres://')) {
+    throw new Error(
+      `DATABASE_URL must start with "postgresql://" or "postgres://". Got: "${connectionString.substring(0, 20)}..."`
     )
   }
 
