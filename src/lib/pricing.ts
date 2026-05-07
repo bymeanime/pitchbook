@@ -40,11 +40,12 @@ function timeInRange(time: string, windowStart: string, windowEnd: string): bool
 /**
  * Check if a date string matches a day of week.
  * dayOfWeek: 0=Sunday, 1=Monday, ..., 6=Saturday (ISO/Nepal standard)
+ * Uses getUTCDay() at noon Nepal time to avoid Vercel UTC offset issues.
  */
 function isDayOfWeek(dateStr: string, dayOfWeek: number): boolean {
-  // Nepal uses Sunday=0 like ISO. JS Date.getDay() also uses Sunday=0.
-  const date = new Date(dateStr + 'T00:00:00+05:45') // Nepal timezone (UTC+5:45)
-  return date.getDay() === dayOfWeek
+  // Parse at noon Nepal time (+05:45) to stay safely away from midnight boundaries
+  const utcDate = new Date(dateStr + 'T12:00:00+05:45')
+  return utcDate.getUTCDay() === dayOfWeek
 }
 
 /**
@@ -74,7 +75,7 @@ export async function calculatePrice(ctx: PricingContext): Promise<PriceResult> 
   const basePrice = court.pricePerHour
 
   // Get the time slot for this day of week and time range
-  const dayOfWeek = new Date(ctx.date + 'T00:00:00+05:45').getDay()
+  const dayOfWeek = new Date(ctx.date + 'T12:00:00+05:45').getUTCDay()
   const timeSlot = await db.timeSlot.findFirst({
     where: {
       courtId: ctx.courtId,
