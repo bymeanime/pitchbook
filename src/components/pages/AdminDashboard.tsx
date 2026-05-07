@@ -258,64 +258,72 @@ function AdminDashboardInner() {
 
   // Toggle venue open/close
   const handleToggleVenue = async (venueId: string, isOpen: boolean) => {
+    const prevVenues = [...venues]
     try {
+      setVenues(prev => prev.map(v => v.id === venueId ? { ...v, isOpen: !isOpen } : v))
       const res = await fetch(`/api/venues/${venueId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ isOpen: !isOpen })
       })
       if (!res.ok) throw new Error('Failed to update venue')
-      setVenues(prev => prev.map(v => v.id === venueId ? { ...v, isOpen: !isOpen } : v))
       toast({ title: `Venue ${!isOpen ? 'opened' : 'closed'}` })
     } catch {
+      setVenues(prevVenues)
       toast({ title: 'Failed to update venue', variant: 'destructive' })
     }
   }
 
   // Toggle venue featured status
   const handleToggleFeatured = async (venueId: string, isFeatured: boolean) => {
+    const prevVenues = [...venues]
     try {
+      setVenues(prev => prev.map(v => v.id === venueId ? { ...v, isFeatured: !isFeatured } : v))
       const res = await fetch(`/api/venues/${venueId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ isFeatured: !isFeatured })
       })
       if (!res.ok) throw new Error('Failed to update venue')
-      setVenues(prev => prev.map(v => v.id === venueId ? { ...v, isFeatured: !isFeatured } : v))
       toast({ title: `Venue ${!isFeatured ? 'featured' : 'unfeatured'}` })
     } catch {
+      setVenues(prevVenues)
       toast({ title: 'Failed to update venue', variant: 'destructive' })
     }
   }
 
   // Update booking status
   const handleUpdateBooking = async (bookingId: string, status: string) => {
+    const prevBookings = [...allBookings]
     try {
+      setAllBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status } : b))
       const res = await fetch(`/api/bookings/${bookingId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status })
       })
       if (!res.ok) throw new Error('Failed to update booking')
-      setAllBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status } : b))
       toast({ title: `Booking ${status}` })
     } catch {
+      setAllBookings(prevBookings)
       toast({ title: 'Failed to update booking', variant: 'destructive' })
     }
   }
 
   // Update user role
   const handleUpdateRole = async (userId: string, newRole: string) => {
+    const prevUsers = [...users]
     try {
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u))
       const res = await fetch(`/api/admin/users`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ userId, role: newRole })
       })
       if (!res.ok) throw new Error('Failed to update role')
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u))
       toast({ title: `User role updated to ${newRole}` })
     } catch {
+      setUsers(prevUsers)
       toast({ title: 'Failed to update role', variant: 'destructive' })
     }
   }
@@ -764,7 +772,7 @@ function AdminDashboardInner() {
                 </div>
                 <div className="p-5 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100/50 text-center">
                   <p className="text-3xl font-bold text-amber-700">Rs {(stats?.platformEarnings ?? 0).toLocaleString()}</p>
-                  <p className="text-sm text-amber-600 mt-1">Platform Earnings (8%)</p>
+                  <p className="text-sm text-amber-600 mt-1">Platform Earnings</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Commission from bookings</p>
                 </div>
                 <div className="p-5 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 text-center">

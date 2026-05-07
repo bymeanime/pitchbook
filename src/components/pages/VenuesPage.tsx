@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast'
 import {
   Search, MapPin, Star, Clock, X
 } from 'lucide-react'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 interface Venue {
   id: string
@@ -37,24 +37,25 @@ export default function VenuesPage() {
   const [venues, setVenues] = useState<Venue[]>([])
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
+  const debounceTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
-  const safeJsonParse = (str: string | null | undefined, fallback: any = []): any => {
+  const safeJsonParse = <T = unknown[]>(str: string | null | undefined, fallback: T = [] as unknown as T): T => {
     if (!str) return fallback
     try {
       const parsed = JSON.parse(str)
-      return Array.isArray(parsed) ? parsed : fallback
+      return Array.isArray(parsed) ? (parsed as T) : fallback
     } catch {
       return fallback
     }
   }
 
-  const fetchVenues = useCallback(async () => {
+  const fetchVenues = useCallback(async (query: string, sport: string, city: string) => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
-      if (searchQuery) params.set('q', searchQuery)
-      if (selectedSport) params.set('sport', selectedSport)
-      if (selectedCity) params.set('city', selectedCity)
+      if (query) params.set('q', query)
+      if (sport) params.set('sport', sport)
+      if (city) params.set('city', city)
 
       const res = await fetch(`/api/venues/search?${params.toString()}`)
       if (!res.ok) throw new Error(`Failed to load venues (${res.status})`)
@@ -65,9 +66,16 @@ export default function VenuesPage() {
     } finally {
       setLoading(false)
     }
-  }, [searchQuery, selectedSport, selectedCity, toast])
+  }, [toast])
 
-  useEffect(() => { fetchVenues() }, [fetchVenues])
+  // Debounce search: only fire API after 300ms of inactivity
+  useEffect(() => {
+    clearTimeout(debounceTimer.current)
+    debounceTimer.current = setTimeout(() => {
+      fetchVenues(searchQuery, selectedSport, selectedCity)
+    }, 300)
+    return () => clearTimeout(debounceTimer.current)
+  }, [searchQuery, selectedSport, selectedCity, fetchVenues])
 
   const openVenue = (id: string) => {
     setSelectedVenueId(id)
@@ -168,8 +176,8 @@ export default function VenuesPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {venues.map((venue) => {
-            const venueSports: string[] = safeJsonParse(venue.sports)
-            const venueAmenities: string[] = safeJsonParse(venue.amenities)
+            const venueSports = safeJsonParse<string[]>(venue.sports)
+            const venueAmenities = safeJsonParse<string[]>(venue.amenities)
             const minPrice = venue.courts.length > 0 ? Math.min(...venue.courts.map(c => c.pricePerHour)) : 0
             const maxPrice = venue.courts.length > 0 ? Math.max(...venue.courts.map(c => c.pricePerHour)) : 0
 

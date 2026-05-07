@@ -19,6 +19,7 @@ interface User {
   name: string
   role: string
   phone?: string
+  createdAt?: string
 }
 
 interface AppState {

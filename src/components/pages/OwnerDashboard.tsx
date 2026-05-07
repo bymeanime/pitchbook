@@ -140,31 +140,35 @@ function OwnerDashboardInner() {
   }
 
   const handleToggleVenue = async (venueId: string, isOpen: boolean) => {
+    const prevVenues = [...venues]
     try {
+      setVenues(prev => prev.map(v => v.id === venueId ? { ...v, isOpen: !isOpen } : v))
       const res = await fetch(`/api/venues/${venueId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ isOpen: !isOpen })
       })
       if (!res.ok) throw new Error('Failed')
-      setVenues(prev => prev.map(v => v.id === venueId ? { ...v, isOpen: !isOpen } : v))
       toast({ title: `Venue ${!isOpen ? 'opened' : 'closed'}` })
     } catch {
+      setVenues(prevVenues)
       toast({ title: 'Failed to update', variant: 'destructive' })
     }
   }
 
   const handleUpdateBooking = async (bookingId: string, status: string) => {
+    const prevBookings = [...bookings]
     try {
+      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status } : b))
       const res = await fetch(`/api/bookings/${bookingId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status })
       })
       if (!res.ok) throw new Error('Failed')
-      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status } : b))
       toast({ title: `Booking ${status}` })
     } catch {
+      setBookings(prevBookings)
       toast({ title: 'Failed to update', variant: 'destructive' })
     }
   }
@@ -407,7 +411,7 @@ function OwnerDashboardInner() {
               <CardContent className="p-5 text-center">
                 <TrendingUp className="w-8 h-8 text-amber-600 mx-auto mb-2" />
                 <p className="text-2xl font-bold">Rs {totalPlatformFees.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">Platform Fees (8% commission)</p>
+                <p className="text-xs text-muted-foreground">Platform Fees (commission)</p>
               </CardContent>
             </Card>
           </div>

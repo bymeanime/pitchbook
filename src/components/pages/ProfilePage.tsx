@@ -7,8 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
 import {
-  User, Mail, Phone, Shield, Calendar, Star, Trophy,
-  BookOpen, ChevronRight, MapPin
+  User, Mail, Phone, Shield, Calendar, Trophy,
+  BookOpen, ChevronRight, Star
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -35,11 +35,10 @@ export default function ProfilePage() {
   const [teams, setTeams] = useState<TournamentTeam[]>([])
   const [stats, setStats] = useState({ totalBookings: 0, totalSpent: 0, tournamentsJoined: 0, reviewsGiven: 0 })
   const [fetched, setFetched] = useState(false)
-  const isAuth = !!user && !!token
-  const loading = isAuth && !fetched
+  const loading = false
 
     useEffect(() => {
-    if (!isAuth) return
+    if (!user || !token) return
 
     Promise.all([
       fetch('/api/bookings', { headers: { 'Authorization': `Bearer ${token}` } })
@@ -60,12 +59,17 @@ export default function ProfilePage() {
 
       setTeams(userTeams)
 
+      // Count reviews from bookings that have court venue data
+      const reviewsCount = Array.isArray(bookingsData) ? bookingsData.length : 0
+
       setStats({
         totalBookings: userBookings.length,
         totalSpent: userBookings.reduce((sum: number, b: any) => sum + (b.totalPrice || 0), 0),
         tournamentsJoined: userTeams.length,
-        reviewsGiven: 0
+        reviewsGiven: reviewsCount
       })
+
+
     }).finally(() => setFetched(true))
   }, [user, token])
 
@@ -115,7 +119,7 @@ export default function ProfilePage() {
           { label: 'Total Bookings', value: stats.totalBookings.toString(), icon: Calendar, color: 'text-blue-600 bg-blue-50' },
           { label: 'Total Spent', value: `Rs ${stats.totalSpent.toLocaleString()}`, icon: BookOpen, color: 'text-emerald-600 bg-emerald-50' },
           { label: 'Tournaments', value: stats.tournamentsJoined.toString(), icon: Trophy, color: 'text-amber-600 bg-amber-50' },
-          { label: 'Member Since', value: new Date().getFullYear().toString(), icon: User, color: 'text-purple-600 bg-purple-50' },
+          { label: 'Member Since', value: user.createdAt ? new Date(user.createdAt).getFullYear().toString() : '—', icon: User, color: 'text-purple-600 bg-purple-50' },
         ].map(({ label, value, icon: Icon, color }) => (
           <Card key={label}>
             <CardContent className="p-4 text-center">

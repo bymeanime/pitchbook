@@ -46,28 +46,41 @@ export default function HomePage() {
   const { navigate, setSelectedVenueId, setSelectedTournamentId, setSelectedSport, setSearchQuery } = useAppStore()
   const { toast } = useToast()
   const [venues, setVenues] = useState<Venue[]>([])
+  const [loadingVenues, setLoadingVenues] = useState(true)
   const [searchInput, setSearchInput] = useState('')
   const [sportFilter, setSportFilter] = useState('')
   const [tournaments, setTournaments] = useState<any[]>([])
+  const [platformStats, setPlatformStats] = useState<{ venues: number; bookings: number; users: number; tournaments: number } | null>(null)
 
-  const safeJsonParse = (str: string | null | undefined, fallback: any = []): any => {
+  const safeJsonParse = <T = unknown[]>(str: string | null | undefined, fallback: T = [] as unknown as T): T => {
     if (!str) return fallback
     try {
       const parsed = JSON.parse(str)
-      return Array.isArray(parsed) ? parsed : fallback
+      return Array.isArray(parsed) ? (parsed as T) : fallback
     } catch {
       return fallback
     }
   }
 
   useEffect(() => {
+    setLoadingVenues(true)
     fetch('/api/venues')
       .then(res => {
         if (!res.ok) throw new Error('Failed to load venues')
         return res.json()
       })
-      .then(data => setVenues(Array.isArray(data) ? data.slice(0, 6) : []))
+      .then(data => {
+        const venueList = Array.isArray(data) ? data.slice(0, 6) : []
+        setVenues(venueList)
+        // Compute sport counts from actual venue data
+        const sportCounts: Record<string, number> = {}
+        venueList.forEach((v: any) => {
+          const sports = JSON.parse(v.sports || '[]')
+          sports.forEach((s: string) => { sportCounts[s] = (sportCounts[s] || 0) + 1 })
+        })
+      })
       .catch(() => toast({ title: 'Failed to load featured venues', variant: 'destructive' }))
+      .finally(() => setLoadingVenues(false))
   }, [])
 
   useEffect(() => {
@@ -192,9 +205,23 @@ export default function HomePage() {
               View All <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
+          {loadingVenues ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <Card key={i} className="overflow-hidden">
+                <div className="aspect-[16/9] bg-muted animate-pulse" />
+                <CardContent className="p-4 space-y-2">
+                  <div className="h-4 bg-muted rounded animate-pulse" />
+                  <div className="h-3 bg-muted rounded animate-pulse w-2/3" />
+                  <div className="h-6 bg-muted rounded animate-pulse w-1/2" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {venues.filter(v => v.isFeatured).map((venue) => {
-              const venueSports = safeJsonParse(venue.sports)
+              const venueSports = safeJsonParse<string[]>(venue.sports)
               const minPrice = venue.courts.length > 0 ? Math.min(...venue.courts.map(c => c.pricePerHour)) : 0
               return (
                 <Card
@@ -203,7 +230,7 @@ export default function HomePage() {
                   onClick={() => openVenue(venue.id)}
                 >
                   {(() => {
-                    const imgs = safeJsonParse(venue.images)
+                    const imgs = safeJsonParse<string[]>(venue.images)
                     return (
                       <div className="aspect-[16/9] relative overflow-hidden bg-gradient-to-br from-primary/20 to-primary/5">
                         {imgs.length > 0 ? (
@@ -253,6 +280,7 @@ export default function HomePage() {
               )
             })}
           </div>
+        )}
         </div>
       </section>
 
@@ -295,7 +323,7 @@ export default function HomePage() {
             </Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {tournaments.length > 0 ? tournaments.map((t) => (
+            {tournaments.length > 0 ? tournaments.map((t: any) => (
               <Card key={t.id} className="bg-white/10 border-white/20 hover:bg-white/15 transition-all cursor-pointer" onClick={() => { setSelectedTournamentId(t.id); navigate('tournament-detail') }}>
                 <CardContent className="p-5">
                   <Badge className="mb-3 capitalize bg-white/20 text-white border-0">{t.sport}</Badge>

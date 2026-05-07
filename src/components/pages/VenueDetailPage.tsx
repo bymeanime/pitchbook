@@ -93,7 +93,7 @@ export default function VenueDetailPage() {
   const [venue, setVenue] = useState<Venue | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedCourt, setSelectedCourt] = useState<Court | null>(null)
-  const [selectedDate, setSelectedDate] = useState('')
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toLocaleDateString('en-CA'))
   const [selectedSlot, setSelectedSlot] = useState<{ start: string; end: string } | null>(null)
   const [bookingNotes, setBookingNotes] = useState('')
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false)
@@ -120,10 +120,7 @@ export default function VenueDetailPage() {
       .finally(() => setLoading(false))
   }, [selectedVenueId])
 
-  useEffect(() => {
-    const today = new Date().toLocaleDateString('en-CA')
-    setSelectedDate(today)
-  }, [])
+  // selectedDate is initialized in useState, no need for a separate useEffect
 
   // Fetch booked slots for the selected court and date
   useEffect(() => {
@@ -192,18 +189,18 @@ export default function VenueDetailPage() {
     )
   }
 
-  const safeJsonParse = (str: string | null | undefined, fallback: any = []): any => {
+  const safeJsonParse = <T = unknown[]>(str: string | null | undefined, fallback: T = [] as unknown as T): T => {
     if (!str) return fallback
     try {
       const parsed = JSON.parse(str)
-      return Array.isArray(parsed) ? parsed : fallback
+      return Array.isArray(parsed) ? (parsed as T) : fallback
     } catch {
       return fallback
     }
   }
 
-  const venueSports: string[] = safeJsonParse(venue.sports)
-  const venueAmenities: string[] = safeJsonParse(venue.amenities)
+  const venueSports: string[] = safeJsonParse<string[]>(venue.sports)
+  const venueAmenities: string[] = safeJsonParse<string[]>(venue.amenities)
 
   // Check if a time slot is booked
   const isSlotBooked = (startTime: string, endTime: string) => {

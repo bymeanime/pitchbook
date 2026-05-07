@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     const token = await createSessionToken(user.id, user.role)
 
     return NextResponse.json({
-      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, createdAt: user.createdAt },
       token
     }, { status: 201 })
   } catch (error) {
