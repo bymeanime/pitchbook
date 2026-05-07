@@ -22,12 +22,7 @@ export async function POST(request: NextRequest) {
 
     // Only allow 'player' role on self-registration.
     // Admin and venue_owner roles must be assigned via the admin dashboard.
-    const allowedRoles = ['player']
-    if (process.env.SEED_SECRET && body.seedSecret === process.env.SEED_SECRET) {
-      // Seed mode: allow any role (used during initial setup only)
-      allowedRoles.push('venue_owner', 'admin')
-    }
-    const userRole = allowedRoles.includes(role) ? role : 'player'
+    const userRole = 'player'
 
     const hashedPassword = await hashPassword(password)
     const user = await db.user.create({
@@ -40,7 +35,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    const token = createSessionToken(user.id, user.role)
+    const token = await createSessionToken(user.id, user.role)
 
     return NextResponse.json({
       user: { id: user.id, email: user.email, name: user.name, role: user.role },

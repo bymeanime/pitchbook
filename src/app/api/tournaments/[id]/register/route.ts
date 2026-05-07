@@ -12,7 +12,7 @@ export async function POST(
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
 
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const session = parseSessionToken(token)
+    const session = await parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
     const tournament = await db.tournament.findUnique({

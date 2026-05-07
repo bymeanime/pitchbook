@@ -66,15 +66,19 @@ export default function MyBookingsPage() {
     fetch('/api/bookings', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load bookings')
+        return res.json()
+      })
       .then(data => setBookings(Array.isArray(data) ? data : []))
       .catch(() => toast({ title: 'Failed to load bookings', variant: 'destructive' }))
       .finally(() => setLoading(false))
   }, [user, token])
 
   const handleCancel = async (bookingId: string) => {
-    // Optimistic update: immediately mark as cancelled in UI
     setCancellingId(bookingId)
+    // Capture original status before optimistic update
+    const originalStatus = bookings.find(b => b.id === bookingId)?.status || 'pending'
     setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'cancelled' } : b))
     try {
       const res = await fetch(`/api/bookings/${bookingId}`, {
@@ -83,14 +87,12 @@ export default function MyBookingsPage() {
         body: JSON.stringify({ status: 'cancelled' })
       })
       if (!res.ok) {
-        // Revert on failure
-        setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: (b as any)._prevStatus || 'pending' } : b))
+        setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: originalStatus } : b))
         throw new Error('Failed to cancel')
       }
       toast({ title: 'Booking cancelled' })
     } catch {
-      // Revert optimistic update on error
-      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: (b as any)._prevStatus || 'pending' } : b))
+      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: originalStatus } : b))
       toast({ title: 'Failed to cancel booking', variant: 'destructive' })
     } finally {
       setCancellingId(null)
@@ -195,11 +197,7 @@ export default function MyBookingsPage() {
                         </div>
                       )}
                       {showCancelButton && (
-                        <Button variant="outline" size="sm" className="text-xs text-destructive hover:text-destructive" onClick={() => {
-                          // Store original status for rollback
-                          setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, _prevStatus: b.status } as any : b))
-                          handleCancel(booking.id)
-                        }}>
+                        <Button variant="outline" size="sm" className="text-xs text-destructive hover:text-destructive" onClick={() => handleCancel(booking.id)}>
                           Cancel
                         </Button>
                       )}

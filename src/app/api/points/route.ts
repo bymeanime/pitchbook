@@ -5,9 +5,9 @@ import { getPointsBalance, getPointsHistory } from '@/lib/points'
 // GET — View points balance + transaction history
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('Authorization')?.replace('Bearer ', '')
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const session = parseSessionToken(token)
+    const session = await parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
 
     const { searchParams } = new URL(request.url)

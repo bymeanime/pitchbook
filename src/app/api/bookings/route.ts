@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const session = parseSessionToken(token)
+    const session = await parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
     // Get user's bookings
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const session = parseSessionToken(token)
+    const session = await parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
     const { courtId, date, startTime, endTime, notes, memberEmails } = body

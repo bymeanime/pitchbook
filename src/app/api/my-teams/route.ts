@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { parseSessionToken } = await import('@/lib/auth')
-    const session = parseSessionToken(token)
+    const session = await parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
     const teams = await db.tournamentTeam.findMany({
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
           }
         },
         _count: {
-          select: { members: true }
+          select: { matchesAsA: true, matchesAsB: true }
         }
       },
       orderBy: { createdAt: 'desc' },

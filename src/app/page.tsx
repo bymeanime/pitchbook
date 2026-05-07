@@ -14,8 +14,6 @@ import OwnerDashboard from '@/components/pages/OwnerDashboard'
 import AdminDashboard from '@/components/pages/AdminDashboard'
 import LoginPage from '@/components/pages/LoginPage'
 import RegisterPage from '@/components/pages/RegisterPage'
-import { useEffect } from 'react'
-
 const CLERK_KEY = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 
 // Clerk sync — only loaded on client, only rendered when Clerk is configured
@@ -25,23 +23,6 @@ const ClerkSyncEffect = CLERK_KEY
 
 export default function App() {
   const { currentPage } = useAppStore()
-
-  // Restore custom auth from localStorage on mount (one-time only)
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const savedUser = localStorage.getItem('pb_user')
-        const savedToken = localStorage.getItem('pb_token')
-        if (savedUser && savedToken) {
-          const parsed = JSON.parse(savedUser)
-          useAppStore.setState({ user: parsed, token: savedToken })
-        }
-      } catch {
-        localStorage.removeItem('pb_user')
-        localStorage.removeItem('pb_token')
-      }
-    }
-  }, [])
 
   const renderPage = () => {
     switch (currentPage) {

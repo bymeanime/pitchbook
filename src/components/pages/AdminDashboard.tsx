@@ -113,6 +113,8 @@ function AdminDashboardInner() {
   const [bookingFilter, setBookingFilter] = useState('')
   const [userSearch, setUserSearch] = useState('')
 
+  const isAdmin = user?.role === 'admin' && !!token
+
   // ── Holidays state ──
   const [holidays, setHolidays] = useState<any[]>([])
   const [holidayName, setHolidayName] = useState('')
@@ -192,8 +194,6 @@ function AdminDashboardInner() {
       toast({ title: 'Failed to delete holiday', variant: 'destructive' })
     }
   }
-  const isAdmin = user?.role === 'admin' && !!token
-
   // Load stats
   useEffect(() => {
     if (!isAdmin) return

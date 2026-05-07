@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const session = parseSessionToken(token)
+    const session = await parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
     const { searchParams } = new URL(request.url)
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
 
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const session = parseSessionToken(token)
+    const session = await parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
     if (!['venue_owner', 'admin'].includes(session.role)) {
@@ -147,7 +147,7 @@ export async function PATCH(request: NextRequest) {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
 
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const session = parseSessionToken(token)
+    const session = await parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
     const ruleId = body.id
@@ -194,7 +194,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const session = parseSessionToken(token)
+    const session = await parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
     const { searchParams } = new URL(request.url)

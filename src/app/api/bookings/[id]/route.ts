@@ -13,7 +13,7 @@ export async function GET(
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
 
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const session = parseSessionToken(token)
+    const session = await parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
     const booking = await db.booking.findUnique({
@@ -50,7 +50,7 @@ export async function PATCH(
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
 
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const session = parseSessionToken(token)
+    const session = await parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
     const booking = await db.booking.findUnique({
@@ -270,7 +270,7 @@ export async function DELETE(
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
 
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const session = parseSessionToken(token)
+    const session = await parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
     // Only admin can hard-delete bookings

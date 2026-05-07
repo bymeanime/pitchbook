@@ -1,27 +1,34 @@
-// Simple password hashing (for MVP — use bcrypt in production)
+import bcrypt from 'bcrypt'
+import { SignJWT, jwtVerify } from 'jose'
+
+const JWT_SECRET = process.env.JWT_SECRET || 'pitchbook-jwt-secret-2025-change-me'
+const secretKey = new TextEncoder().encode(JWT_SECRET)
+
 export async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(password)
-  const hash = await crypto.subtle.digest('SHA-256', data)
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('')
+  return bcrypt.hash(password, 12)
 }
 
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  const passwordHash = await hashPassword(password)
-  return passwordHash === hash
+  return bcrypt.compare(password, hash)
 }
 
-// Simple JWT-like token for session management (for MVP)
-export function createSessionToken(userId: string, role: string): string {
-  const payload = JSON.stringify({ userId, role, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 })
-  return Buffer.from(payload).toString('base64')
+export async function createSessionToken(userId: string, role: string): Promise<string> {
+  const token = await new SignJWT({ userId, role })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('7d')
+    .setIssuedAt()
+    .sign(secretKey)
+  return token
 }
 
-export function parseSessionToken(token: string): { userId: string; role: string; exp: number } | null {
+export async function parseSessionToken(token: string): Promise<{ userId: string; role: string; exp: number } | null> {
   try {
-    const payload = JSON.parse(Buffer.from(token, 'base64').toString())
-    if (payload.exp < Date.now()) return null
-    return payload
+    const { payload } = await jwtVerify(token, secretKey)
+    const { userId, role, exp } = payload
+    if (typeof userId !== 'string' || typeof role !== 'string' || typeof exp !== 'number') {
+      return null
+    }
+    return { userId, role, exp }
   } catch {
     return null
   }

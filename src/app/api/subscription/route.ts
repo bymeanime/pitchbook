@@ -7,9 +7,9 @@ import { logAudit } from '@/lib/audit'
 // GET — Get current user's subscription with usage info
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('Authorization')?.replace('Bearer ', '')
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const session = parseSessionToken(token)
+    const session = await parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
 
     let subscription = await db.subscription.findUnique({
@@ -81,9 +81,9 @@ export async function GET(request: NextRequest) {
 // POST — Start free trial (venue_owner only)
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get('Authorization')?.replace('Bearer ', '')
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const session = parseSessionToken(token)
+    const session = await parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     if (session.role !== 'venue_owner') {
       return NextResponse.json({ error: 'Only venue owners can start a trial' }, { status: 403 })

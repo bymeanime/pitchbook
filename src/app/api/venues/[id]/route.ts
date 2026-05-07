@@ -50,7 +50,7 @@ export async function PUT(
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { parseSessionToken } = await import('@/lib/auth')
-    const session = parseSessionToken(token)
+    const session = await parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
     const venue = await db.venue.findUnique({ where: { id } })

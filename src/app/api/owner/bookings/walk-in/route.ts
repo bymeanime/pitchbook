@@ -7,9 +7,9 @@ import { logAudit } from '@/lib/audit'
 // POST — Owner creates a walk-in booking (auto-confirmed, no pending flow)
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get('Authorization')?.replace('Bearer ', '')
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const session = parseSessionToken(token)
+    const session = await parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     if (session.role !== 'venue_owner' && session.role !== 'admin') {
       return NextResponse.json({ error: 'Only venue owners and admins can create walk-in bookings' }, { status: 403 })

@@ -6,9 +6,9 @@ import { logAudit } from '@/lib/audit'
 // Admin: list all subscriptions
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('Authorization')?.replace('Bearer ', '')
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const session = parseSessionToken(token)
+    const session = await parseSessionToken(token)
     if (!session || session.role !== 'admin') {
       return NextResponse.json({ error: 'Admin only' }, { status: 403 })
     }
@@ -31,9 +31,9 @@ export async function GET(request: NextRequest) {
 // Admin: upgrade/downgrade/renew a user's subscription
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get('Authorization')?.replace('Bearer ', '')
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const session = parseSessionToken(token)
+    const session = await parseSessionToken(token)
     if (!session || session.role !== 'admin') {
       return NextResponse.json({ error: 'Admin only' }, { status: 403 })
     }

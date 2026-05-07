@@ -43,11 +43,12 @@ interface Venue {
 }
 
 export default function HomePage() {
-  const { navigate, setSelectedVenueId, setSelectedSport, setSearchQuery } = useAppStore()
+  const { navigate, setSelectedVenueId, setSelectedTournamentId, setSelectedSport, setSearchQuery } = useAppStore()
   const { toast } = useToast()
   const [venues, setVenues] = useState<Venue[]>([])
   const [searchInput, setSearchInput] = useState('')
   const [sportFilter, setSportFilter] = useState('')
+  const [tournaments, setTournaments] = useState<any[]>([])
 
   const safeJsonParse = (str: string | null | undefined, fallback: any = []): any => {
     if (!str) return fallback
@@ -67,6 +68,18 @@ export default function HomePage() {
       })
       .then(data => setVenues(Array.isArray(data) ? data.slice(0, 6) : []))
       .catch(() => toast({ title: 'Failed to load featured venues', variant: 'destructive' }))
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/tournaments')
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load tournaments')
+        return res.json()
+      })
+      .then(data => {
+        setTournaments(Array.isArray(data) ? data.slice(0, 3) : [])
+      })
+      .catch(() => {}) // silently fail for homepage
   }, [])
 
   const handleSearch = () => {
@@ -282,25 +295,23 @@ export default function HomePage() {
             </Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              { name: 'Kathmandu Futsal League', sport: 'futsal', date: 'Jul 1-15', teams: '16 teams', prize: 'Rs 50,000' },
-              { name: 'Badminton Open', sport: 'badminton', date: 'Jun 20-22', teams: '32 teams', prize: 'Rs 20,000' },
-              { name: 'Elite Cup Championship', sport: 'futsal', date: 'Aug 1-31', teams: '8 teams', prize: 'Rs 100,000' },
-            ].map((t) => (
-              <Card key={t.name} className="bg-white/10 border-white/20 hover:bg-white/15 transition-all cursor-pointer" onClick={() => navigate('tournaments')}>
+            {tournaments.length > 0 ? tournaments.map((t) => (
+              <Card key={t.id} className="bg-white/10 border-white/20 hover:bg-white/15 transition-all cursor-pointer" onClick={() => { setSelectedTournamentId(t.id); navigate('tournament-detail') }}>
                 <CardContent className="p-5">
                   <Badge className="mb-3 capitalize bg-white/20 text-white border-0">{t.sport}</Badge>
                   <h3 className="font-semibold text-base mb-1">{t.name}</h3>
                   <div className="flex items-center gap-4 text-sm opacity-80">
-                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {t.date}</span>
-                    <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {t.teams}</span>
+                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {t.startDate}</span>
+                    <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {t._count?.teams || 0}/{t.maxTeams} teams</span>
                   </div>
                   <div className="mt-3 flex items-center gap-1 text-sm font-medium">
-                    <Award className="w-4 h-4" /> Prize: {t.prize}
+                    <Award className="w-4 h-4" /> Prize: Rs {t.prizePool?.toLocaleString() || 0}
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            )) : (
+              <p className="text-center text-white/60 py-8 col-span-3">No upcoming tournaments</p>
+            )}
           </div>
         </div>
       </section>

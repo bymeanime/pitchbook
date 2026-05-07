@@ -167,13 +167,26 @@ export default function VenueDetailPage() {
       .finally(() => setLoadingPrice(false))
   }, [selectedCourt, selectedSlot, selectedDate, selectedVenueId])
 
-  if (loading || !venue) {
+  if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="animate-pulse space-y-4">
           <div className="h-64 bg-muted rounded-2xl" />
           <div className="h-8 bg-muted rounded w-1/2" />
           <div className="h-4 bg-muted rounded w-1/3" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!venue) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="text-center py-16">
+          <div className="text-5xl mb-3">🏟️</div>
+          <h3 className="text-lg font-semibold mb-1">Venue not found</h3>
+          <p className="text-sm text-muted-foreground mb-4">This venue may have been removed or is unavailable</p>
+          <Button onClick={() => navigate('venues')}>Browse Venues</Button>
         </div>
       </div>
     )

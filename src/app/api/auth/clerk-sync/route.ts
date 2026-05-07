@@ -58,7 +58,7 @@ export async function POST() {
     }
 
     // Create a session token for our custom auth system
-    const token = createSessionToken(user.id, user.role)
+    const token = await createSessionToken(user.id, user.role)
 
     return NextResponse.json({
       user: { id: user.id, email: user.email, name: user.name, role: user.role, phone: user.phone },
