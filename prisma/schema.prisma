@@ -375,3 +375,20 @@ model Review {
   user      User     @relation(fields: [userId], references: [id])
   venue     Venue    @relation(fields: [venueId], references: [id])
 }
+
+// ─── Government Holidays (Nepal) ──────────────────────────
+// Admin-managed list of public holidays for dynamic pricing.
+model Holiday {
+  id              String   @id @default(cuid())
+  name            String   // "Dashain", "Tihar", "Democracy Day", etc.
+  date            String   // "2025-10-20"
+  type            String   @default("public") // public, religious, national
+  isRecurring     Boolean  @default(false) // true = repeats every year (same month/day)
+  recurringMonth  Int?     // 10 for October
+  recurringDay    Int?     // 20 for 20th
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  @@index([date])
+  @@index([isActive])
+}

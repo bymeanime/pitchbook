@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import {
   Calendar, MapPin, Clock, CheckCircle, XCircle, AlertCircle,
-  ChevronLeft
+  ChevronLeft, Loader2
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -55,6 +55,7 @@ export default function MyBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('')
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user || !token) {
@@ -72,17 +73,27 @@ export default function MyBookingsPage() {
   }, [user, token])
 
   const handleCancel = async (bookingId: string) => {
+    // Optimistic update: immediately mark as cancelled in UI
+    setCancellingId(bookingId)
+    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'cancelled' } : b))
     try {
       const res = await fetch(`/api/bookings/${bookingId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status: 'cancelled' })
       })
-      if (!res.ok) throw new Error('Failed to cancel')
-      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'cancelled' } : b))
+      if (!res.ok) {
+        // Revert on failure
+        setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: (b as any)._prevStatus || 'pending' } : b))
+        throw new Error('Failed to cancel')
+      }
       toast({ title: 'Booking cancelled' })
     } catch {
+      // Revert optimistic update on error
+      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: (b as any)._prevStatus || 'pending' } : b))
       toast({ title: 'Failed to cancel booking', variant: 'destructive' })
+    } finally {
+      setCancellingId(null)
     }
   }
 
@@ -146,6 +157,8 @@ export default function MyBookingsPage() {
             const courtName = booking.court?.name || 'Unknown Court'
             const venueName = booking.court?.venue?.name || 'Unknown Venue'
             const venueCity = booking.court?.venue?.city || ''
+            const isCancelling = cancellingId === booking.id
+            const showCancelButton = (booking.status === 'pending' || booking.status === 'confirmed') && !isCancelling
 
             return (
               <Card key={booking.id} className="hover:shadow-md transition-all">
@@ -175,8 +188,18 @@ export default function MyBookingsPage() {
                       {booking.status === 'rejected' && booking.rejectionReason && (
                         <p className="text-xs text-red-500 mb-1">Reason: {booking.rejectionReason}</p>
                       )}
-                      {(booking.status === 'pending' || booking.status === 'confirmed') && (
-                        <Button variant="outline" size="sm" className="text-xs text-destructive hover:text-destructive" onClick={() => handleCancel(booking.id)}>
+                      {isCancelling && (
+                        <div className="flex items-center gap-1.5">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          <span className="text-xs text-muted-foreground">Cancelling...</span>
+                        </div>
+                      )}
+                      {showCancelButton && (
+                        <Button variant="outline" size="sm" className="text-xs text-destructive hover:text-destructive" onClick={() => {
+                          // Store original status for rollback
+                          setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, _prevStatus: b.status } as any : b))
+                          handleCancel(booking.id)
+                        }}>
                           Cancel
                         </Button>
                       )}

@@ -10,10 +10,15 @@ import { useToast } from '@/hooks/use-toast'
 import {
   Shield, Users, Building2, Calendar, DollarSign, TrendingUp,
   Trophy, Star, BarChart3, Activity, Search, Eye, EyeOff,
-  CheckCircle, XCircle, AlertCircle, UserCog, RefreshCw
+  CheckCircle, XCircle, AlertCircle, UserCog, RefreshCw, Plus, Trash2, Loader2
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Label } from '@/components/ui/label'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 
 // ── Error Boundary ──────────────────────────────────────────────
 interface EBProps { children: React.ReactNode }
@@ -107,6 +112,86 @@ function AdminDashboardInner() {
   const [loading, setLoading] = useState(true)
   const [bookingFilter, setBookingFilter] = useState('')
   const [userSearch, setUserSearch] = useState('')
+
+  // ── Holidays state ──
+  const [holidays, setHolidays] = useState<any[]>([])
+  const [holidayName, setHolidayName] = useState('')
+  const [holidayDate, setHolidayDate] = useState('')
+  const [holidayType, setHolidayType] = useState('public')
+  const [holidayRecurring, setHolidayRecurring] = useState(false)
+  const [holidaySubmitting, setHolidaySubmitting] = useState(false)
+
+  // Load holidays
+  useEffect(() => {
+    if (!isAdmin) return
+    const year = new Date().getFullYear()
+    fetch(`/api/admin/holidays?year=${year}`, { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load holidays')
+        return res.json()
+      })
+      .then(data => setHolidays(Array.isArray(data) ? data : []))
+      .catch(() => setHolidays([]))
+  }, [isAdmin, token])
+
+  // Add holiday
+  const handleAddHoliday = async () => {
+    if (!holidayName.trim() || !holidayDate) {
+      toast({ title: 'Name and date are required', variant: 'destructive' })
+      return
+    }
+    setHolidaySubmitting(true)
+    try {
+      const dateParts = holidayDate.split('-')
+      const payload: any = {
+        name: holidayName.trim(),
+        date: holidayDate,
+        type: holidayType,
+        isRecurring: holidayRecurring,
+      }
+      if (holidayRecurring) {
+        payload.recurringMonth = parseInt(dateParts[1])
+        payload.recurringDay = parseInt(dateParts[2])
+      }
+      const res = await fetch('/api/admin/holidays', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to add holiday')
+      }
+      toast({ title: 'Holiday added' })
+      setHolidayName('')
+      setHolidayDate('')
+      setHolidayType('public')
+      setHolidayRecurring(false)
+      // Reload holidays
+      const year = new Date().getFullYear()
+      const updated = await fetch(`/api/admin/holidays?year=${year}`, { headers: { 'Authorization': `Bearer ${token}` } })
+      if (updated.ok) setHolidays(await updated.json())
+    } catch (err: any) {
+      toast({ title: err.message || 'Failed to add holiday', variant: 'destructive' })
+    } finally {
+      setHolidaySubmitting(false)
+    }
+  }
+
+  // Delete holiday
+  const handleDeleteHoliday = async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/holidays?id=${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error('Failed')
+      setHolidays(prev => prev.filter(h => h.id !== id))
+      toast({ title: 'Holiday deleted' })
+    } catch {
+      toast({ title: 'Failed to delete holiday', variant: 'destructive' })
+    }
+  }
 
   const isAdmin = user?.role === 'admin' && !!token
 
@@ -299,6 +384,7 @@ function AdminDashboardInner() {
           <TabsTrigger value="bookings">Bookings</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="venues">Venues</TabsTrigger>
+          <TabsTrigger value="holidays">Holidays</TabsTrigger>
           <TabsTrigger value="overview">Overview</TabsTrigger>
         </TabsList>
 
@@ -496,6 +582,97 @@ function AdminDashboardInner() {
               <p className="text-center text-muted-foreground py-8 col-span-2">No venues found</p>
             )}
           </div>
+        </TabsContent>
+
+        {/* Holidays Tab */}
+        <TabsContent value="holidays" className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Manage Government Holidays</CardTitle>
+              <p className="text-xs text-muted-foreground">Holidays are used for dynamic pricing. Venue owners can create pricing rules for specific dates.</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Add Holiday Form */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="holiday-name">Holiday Name</Label>
+                  <Input
+                    id="holiday-name"
+                    placeholder="e.g. Dashain"
+                    value={holidayName}
+                    onChange={e => setHolidayName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="holiday-date">Date</Label>
+                  <Input
+                    id="holiday-date"
+                    type="date"
+                    value={holidayDate}
+                    onChange={e => setHolidayDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Type</Label>
+                  <Select value={holidayType} onValueChange={setHolidayType}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="public">Public</SelectItem>
+                      <SelectItem value="religious">Religious</SelectItem>
+                      <SelectItem value="national">National</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="flex items-center gap-2">
+                    <Checkbox checked={holidayRecurring} onCheckedChange={v => setHolidayRecurring(v === true)} />
+                    Recurring yearly
+                  </Label>
+                  <Button onClick={handleAddHoliday} disabled={holidaySubmitting} className="w-full mt-3">
+                    {holidaySubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    <Plus className="w-4 h-4 mr-1" /> Add Holiday
+                  </Button>
+                </div>
+              </div>
+
+              {/* Holidays List */}
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {holidays.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">No holidays added yet</p>
+                ) : (
+                  holidays.map(h => (
+                    <div key={h.id} className="flex items-center justify-between p-3 rounded-lg border">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                          <Calendar className="w-5 h-5 text-amber-600" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium">{h.name}</p>
+                            <Badge variant="outline" className="text-[10px] capitalize">{h.type}</Badge>
+                            {h.isRecurring && (
+                              <Badge className="bg-purple-100 text-purple-700 text-[10px]">Recurring</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">{h.date}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                        onClick={() => handleDeleteHoliday(h.id)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Overview Tab */}

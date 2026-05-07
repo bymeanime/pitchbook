@@ -12,11 +12,13 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import {
   Building2, Calendar, DollarSign, Users, TrendingUp, Star,
-  CheckCircle, XCircle, Clock, AlertCircle, BarChart3, Eye, EyeOff, RefreshCw, Plus, Trophy
+  CheckCircle, XCircle, Clock, AlertCircle, BarChart3, Eye, EyeOff, RefreshCw, Plus, Trophy, Pencil
 } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import AddVenueDialog from '@/components/AddVenueDialog'
+import EditVenueDialog from '@/components/EditVenueDialog'
 import CreateTournamentDialog from '@/components/CreateTournamentDialog'
+import PricingRulesPanel from '@/components/PricingRulesPanel'
 
 // ── Error Boundary ──────────────────────────────────────────────
 interface EBProps { children: React.ReactNode }
@@ -72,6 +74,8 @@ function OwnerDashboardInner() {
   const [loading, setLoading] = useState(true)
   const [bookingFilter, setBookingFilter] = useState('all')
   const [addVenueOpen, setAddVenueOpen] = useState(false)
+  const [editVenueId, setEditVenueId] = useState<string | null>(null)
+  const [editVenueOpen, setEditVenueOpen] = useState(false)
   const [createTournamentOpen, setCreateTournamentOpen] = useState(false)
 
   const loadData = useCallback(() => {
@@ -208,6 +212,7 @@ function OwnerDashboardInner() {
         <TabsList>
           <TabsTrigger value="bookings">Bookings</TabsTrigger>
           <TabsTrigger value="venues">Venues</TabsTrigger>
+          <TabsTrigger value="pricing">Pricing</TabsTrigger>
           <TabsTrigger value="revenue">Revenue</TabsTrigger>
         </TabsList>
 
@@ -320,14 +325,24 @@ function OwnerDashboardInner() {
                     <div className="text-xs text-muted-foreground mb-3">
                       {courts.length} courts: {courts.map(c => c.name).join(', ') || 'None'}
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => handleToggleVenue(venue.id, venue.isOpen)}
-                    >
-                      {venue.isOpen ? <><EyeOff className="w-3 h-3 mr-1" /> Close Venue</> : <><Eye className="w-3 h-3 mr-1" /> Open Venue</>}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleToggleVenue(venue.id, venue.isOpen)}
+                      >
+                        {venue.isOpen ? <><EyeOff className="w-3 h-3 mr-1" /> Close</> : <><Eye className="w-3 h-3 mr-1" /> Open</>}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs"
+                        onClick={() => { setEditVenueId(venue.id); setEditVenueOpen(true) }}
+                      >
+                        <Pencil className="w-3 h-3 mr-1" /> Edit
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               )
@@ -336,6 +351,18 @@ function OwnerDashboardInner() {
               <p className="text-center text-muted-foreground py-8 col-span-2">No venues found</p>
             )}
           </div>
+        </TabsContent>
+
+        {/* Pricing Tab */}
+        <TabsContent value="pricing" className="space-y-4">
+          {safeVenues.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">Add a venue first to manage pricing rules</p>
+          ) : token ? (
+            <PricingRulesPanel
+              venues={safeVenues.map(v => ({ id: v.id, name: v.name, city: v.city }))}
+              token={token}
+            />
+          ) : null}
         </TabsContent>
 
         {/* Revenue Tab */}
@@ -392,6 +419,12 @@ function OwnerDashboardInner() {
         open={addVenueOpen}
         onOpenChange={setAddVenueOpen}
         onSuccess={loadData}
+      />
+      <EditVenueDialog
+        open={editVenueOpen}
+        onOpenChange={setEditVenueOpen}
+        onSuccess={loadData}
+        venueId={editVenueId}
       />
       <CreateTournamentDialog
         open={createTournamentOpen}
