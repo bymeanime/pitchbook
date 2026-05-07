@@ -57,11 +57,15 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   // Navigation
   currentPage: 'home',
-  navigate: (page) =>
+  navigate: (page) => {
     set((state) => ({
       currentPage: page,
       previousPage: state.currentPage,
-    })),
+    }))
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  },
   previousPage: null,
 
   // Selected items

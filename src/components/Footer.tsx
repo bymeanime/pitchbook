@@ -46,7 +46,7 @@ export default function Footer() {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><button onClick={() => navigate('register')} className="hover:text-primary transition-colors">List Your Venue</button></li>
               <li><button onClick={() => navigate('owner-dashboard')} className="hover:text-primary transition-colors">Owner Dashboard</button></li>
-              <li className="hover:text-primary transition-colors cursor-pointer">Pricing Plans</li>
+              <li><button onClick={() => navigate('register')} className="hover:text-primary transition-colors">Pricing Plans</button></li>
             </ul>
           </div>
 

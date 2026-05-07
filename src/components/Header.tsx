@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/useAppStore'
 import { Button } from '@/components/ui/button'
 import {
   Menu, X, Home, Search, Trophy, Calendar, LayoutDashboard, Shield,
-  LogIn, UserPlus, LogOut, ChevronDown, User
+  LogIn, UserPlus, LogOut, ChevronDown, User, Bell
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import {
@@ -24,9 +24,14 @@ const ClerkHeaderSection = CLERK_KEY
   : () => null
 
 export default function Header() {
-  const { user, currentPage, navigate, logout } = useAppStore()
+  const { user, currentPage, navigate, logout, token } = useAppStore()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [pendingCount, setPendingCount] = useState(0)
+  const isLoggedIn = !!user
+  const displayName = user?.name || ''
+  const displayEmail = user?.email || ''
+  const role = user?.role || 'player'
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10)
@@ -34,17 +39,22 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  useEffect(() => {
+    if (!isLoggedIn || !token) return
+    fetch('/api/bookings', { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(r => r.json())
+      .then((data: any[]) => {
+        const count = Array.isArray(data) ? data.filter((b: any) => b.status === 'pending').length : 0
+        setPendingCount(count)
+      })
+      .catch(() => setPendingCount(0))
+  }, [isLoggedIn, token])
+
   const navItems = [
     { label: 'Home', page: 'home' as const, icon: Home },
     { label: 'Venues', page: 'venues' as const, icon: Search },
     { label: 'Tournaments', page: 'tournaments' as const, icon: Trophy },
   ]
-
-  // Use custom auth user data (primary auth method)
-  const displayName = user?.name || ''
-  const displayEmail = user?.email || ''
-  const isLoggedIn = !!user
-  const role = user?.role || 'player'
 
   // Shared dropdown menu items based on role
   const renderMenuItems = (closeMobile?: () => void) => (
@@ -156,6 +166,20 @@ export default function Header() {
                     <span className="hidden lg:inline">Admin</span>
                   </Button>
                 )}
+                {role === 'player' && pendingCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate('my-bookings')}
+                    className="gap-2 relative"
+                  >
+                    <Bell className="w-4 h-4" />
+                    <span className="hidden lg:inline">Notifications</span>
+                    <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                      {pendingCount}
+                    </span>
+                  </Button>
+                )}
               </>
             )}
           </nav>
@@ -243,6 +267,11 @@ export default function Header() {
                     <Button variant="ghost" className="w-full justify-start gap-3" onClick={() => { navigate('profile'); setMobileOpen(false) }}>
                       <User className="w-4 h-4" /> Profile
                     </Button>
+                    {role === 'player' && pendingCount > 0 && (
+                      <Button variant="ghost" className="w-full justify-start gap-3" onClick={() => { navigate('my-bookings'); setMobileOpen(false) }}>
+                        <Bell className="w-4 h-4" /> Notifications ({pendingCount})
+                      </Button>
+                    )}
                   </>
                 )}
                 {role === 'venue_owner' && (

@@ -110,6 +110,8 @@ function AdminDashboardInner() {
   const [venues, setVenues] = useState<AdminVenue[]>([])
   const [allBookings, setAllBookings] = useState<AdminBooking[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingCounts, setLoadingCounts] = useState({ stats: 0, users: 0, venues: 0, bookings: 0, holidays: 0 })
+  const isLoading = Object.values(loadingCounts).some(v => v > 0)
   const [bookingFilter, setBookingFilter] = useState('')
   const [userSearch, setUserSearch] = useState('')
 
@@ -126,6 +128,7 @@ function AdminDashboardInner() {
   // Load holidays
   useEffect(() => {
     if (!isAdmin) return
+    setLoadingCounts(prev => ({ ...prev, holidays: prev.holidays + 1 }))
     const year = new Date().getFullYear()
     fetch(`/api/admin/holidays?year=${year}`, { headers: { 'Authorization': `Bearer ${token}` } })
       .then(res => {
@@ -134,6 +137,7 @@ function AdminDashboardInner() {
       })
       .then(data => setHolidays(Array.isArray(data) ? data : []))
       .catch(() => setHolidays([]))
+      .finally(() => setLoadingCounts(prev => ({ ...prev, holidays: prev.holidays - 1 })))
   }, [isAdmin, token])
 
   // Add holiday
@@ -197,6 +201,7 @@ function AdminDashboardInner() {
   // Load stats
   useEffect(() => {
     if (!isAdmin) return
+    setLoadingCounts(prev => ({ ...prev, stats: prev.stats + 1 }))
     fetch('/api/admin/stats', { headers: { 'Authorization': `Bearer ${token}` } })
       .then(res => {
         if (!res.ok) throw new Error(`Failed to load admin stats (${res.status})`)
@@ -206,11 +211,13 @@ function AdminDashboardInner() {
       .catch((err) => {
         toast({ title: err.message || 'Failed to load stats', variant: 'destructive' })
       })
+      .finally(() => setLoadingCounts(prev => ({ ...prev, stats: prev.stats - 1 })))
   }, [isAdmin, token])
 
   // Load users
   useEffect(() => {
     if (!isAdmin) return
+    setLoadingCounts(prev => ({ ...prev, users: prev.users + 1 }))
     fetch('/api/admin/users', { headers: { 'Authorization': `Bearer ${token}` } })
       .then(res => {
         if (!res.ok) throw new Error('Failed to load users')
@@ -218,11 +225,13 @@ function AdminDashboardInner() {
       })
       .then(data => setUsers(Array.isArray(data) ? data : []))
       .catch(() => toast({ title: 'Failed to load users', variant: 'destructive' }))
+      .finally(() => setLoadingCounts(prev => ({ ...prev, users: prev.users - 1 })))
   }, [isAdmin, token])
 
   // Load venues
   useEffect(() => {
     if (!isAdmin) return
+    setLoadingCounts(prev => ({ ...prev, venues: prev.venues + 1 }))
     fetch('/api/admin/venues', { headers: { 'Authorization': `Bearer ${token}` } })
       .then(res => {
         if (!res.ok) throw new Error('Failed to load venues')
@@ -230,11 +239,13 @@ function AdminDashboardInner() {
       })
       .then(data => setVenues(Array.isArray(data) ? data : []))
       .catch(() => toast({ title: 'Failed to load venues', variant: 'destructive' }))
+      .finally(() => setLoadingCounts(prev => ({ ...prev, venues: prev.venues - 1 })))
   }, [isAdmin, token])
 
   // Load all bookings
   useEffect(() => {
     if (!isAdmin) return
+    setLoadingCounts(prev => ({ ...prev, bookings: prev.bookings + 1 }))
     fetch('/api/admin/bookings', { headers: { 'Authorization': `Bearer ${token}` } })
       .then(res => {
         if (!res.ok) throw new Error('Failed to load bookings')
@@ -242,7 +253,7 @@ function AdminDashboardInner() {
       })
       .then(data => setAllBookings(Array.isArray(data) ? data : []))
       .catch(() => toast({ title: 'Failed to load bookings', variant: 'destructive' }))
-      .finally(() => setLoading(false))
+      .finally(() => setLoadingCounts(prev => ({ ...prev, bookings: prev.bookings - 1 })))
   }, [isAdmin, token])
 
   // Toggle venue open/close
@@ -321,7 +332,7 @@ function AdminDashboardInner() {
   }
 
   // ── Guard: loading ──
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="animate-pulse grid grid-cols-2 lg:grid-cols-3 gap-4">

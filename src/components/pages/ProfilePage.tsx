@@ -43,9 +43,9 @@ export default function ProfilePage() {
 
     Promise.all([
       fetch('/api/bookings', { headers: { 'Authorization': `Bearer ${token}` } })
-        .then(r => r.json()).catch(() => []),
+        .then(r => { if (!r.ok) throw new Error(); return r.json() }).catch(() => []),
       fetch('/api/my-teams', { headers: { 'Authorization': `Bearer ${token}` } })
-        .then(r => r.json()).catch(() => []),
+        .then(r => { if (!r.ok) throw new Error(); return r.json() }).catch(() => []),
     ]).then(([bookingsData, teamsData]) => {
       const userBookings = Array.isArray(bookingsData) ? bookingsData : []
       setBookings(userBookings)
@@ -115,7 +115,7 @@ export default function ProfilePage() {
           { label: 'Total Bookings', value: stats.totalBookings.toString(), icon: Calendar, color: 'text-blue-600 bg-blue-50' },
           { label: 'Total Spent', value: `Rs ${stats.totalSpent.toLocaleString()}`, icon: BookOpen, color: 'text-emerald-600 bg-emerald-50' },
           { label: 'Tournaments', value: stats.tournamentsJoined.toString(), icon: Trophy, color: 'text-amber-600 bg-amber-50' },
-          { label: 'Member Since', value: '2025', icon: User, color: 'text-purple-600 bg-purple-50' },
+          { label: 'Member Since', value: new Date().getFullYear().toString(), icon: User, color: 'text-purple-600 bg-purple-50' },
         ].map(({ label, value, icon: Icon, color }) => (
           <Card key={label}>
             <CardContent className="p-4 text-center">
