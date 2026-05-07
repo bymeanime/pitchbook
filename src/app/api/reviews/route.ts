@@ -7,6 +7,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const venueId = searchParams.get('venueId') || ''
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1') || 1)
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '20') || 20))
 
     const where: any = {}
     if (venueId) where.venueId = venueId
@@ -15,7 +17,8 @@ export async function GET(request: NextRequest) {
       where,
       include: { user: { select: { id: true, name: true, avatar: true } } },
       orderBy: { createdAt: 'desc' },
-      take: 50,
+      skip: (page - 1) * limit,
+      take: limit,
     })
 
     return NextResponse.json(reviews)

@@ -2,6 +2,15 @@ import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 interface BookingEmailProps {
   to: string
   userName: string
@@ -25,7 +34,7 @@ export async function sendBookingConfirmation(props: BookingEmailProps) {
       from: 'PitchBook <onboarding@resend.dev>',
       replyTo: 'bymeanime@gmail.com',
       to: [props.to],
-      subject: `Booking Confirmed: ${props.venueName} - ${props.courtName}`,
+      subject: `Booking Confirmed: ${escapeHtml(props.venueName)} - ${escapeHtml(props.courtName)}`,
       html: `
         <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 24px;">
@@ -43,19 +52,19 @@ export async function sendBookingConfirmation(props: BookingEmailProps) {
             <table style="width: 100%; border-collapse: collapse;">
               <tr>
                 <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Venue</td>
-                <td style="padding: 8px 0; text-align: right; font-weight: 600;">${props.venueName}</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: 600;">${escapeHtml(props.venueName)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Court</td>
-                <td style="padding: 8px 0; text-align: right; font-weight: 600;">${props.courtName}</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: 600;">${escapeHtml(props.courtName)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Date</td>
-                <td style="padding: 8px 0; text-align: right; font-weight: 600;">${props.date}</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: 600;">${escapeHtml(props.date)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Time</td>
-                <td style="padding: 8px 0; text-align: right; font-weight: 600;">${props.startTime} - ${props.endTime}</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: 600;">${escapeHtml(props.startTime)} - ${escapeHtml(props.endTime)}</td>
               </tr>
               <tr style="border-top: 2px solid #e5e7eb;">
                 <td style="padding: 12px 0 8px 0; color: #6b7280; font-size: 14px;">Total</td>
@@ -65,7 +74,7 @@ export async function sendBookingConfirmation(props: BookingEmailProps) {
           </div>
 
           <div style="background: #f9fafb; border-radius: 8px; padding: 12px; font-size: 13px; color: #6b7280; text-align: center;">
-            Booking ID: <strong>${props.bookingId.slice(0, 8).toUpperCase()}</strong> | 
+            Booking ID: <strong>${escapeHtml(props.bookingId.slice(0, 8).toUpperCase())}</strong> | 
             Show this at the venue reception
           </div>
 
@@ -109,7 +118,7 @@ export async function sendTournamentRegistration(props: TournamentEmailProps) {
       from: 'PitchBook <onboarding@resend.dev>',
       replyTo: 'bymeanime@gmail.com',
       to: [props.to],
-      subject: `Tournament Registration: ${props.tournamentName}`,
+      subject: `Tournament Registration: ${escapeHtml(props.tournamentName)}`,
       html: `
         <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 24px;">
@@ -120,26 +129,26 @@ export async function sendTournamentRegistration(props: TournamentEmailProps) {
 
           <div style="background: #fefce8; border-radius: 12px; padding: 20px; margin-bottom: 16px;">
             <h2 style="margin: 0 0 8px 0; color: #ca8a04; font-size: 20px;">You're Registered!</h2>
-            <p style="margin: 0; color: #854d0e;">Your team "${props.teamName}" is now registered for the tournament.</p>
+            <p style="margin: 0; color: #854d0e;">Your team &quot;${escapeHtml(props.teamName)}&quot; is now registered for the tournament.</p>
           </div>
 
           <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 16px;">
             <table style="width: 100%; border-collapse: collapse;">
               <tr>
                 <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Tournament</td>
-                <td style="padding: 8px 0; text-align: right; font-weight: 600;">${props.tournamentName}</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: 600;">${escapeHtml(props.tournamentName)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Your Team</td>
-                <td style="padding: 8px 0; text-align: right; font-weight: 600;">${props.teamName}</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: 600;">${escapeHtml(props.teamName)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Venue</td>
-                <td style="padding: 8px 0; text-align: right; font-weight: 600;">${props.venueName}</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: 600;">${escapeHtml(props.venueName)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Start Date</td>
-                <td style="padding: 8px 0; text-align: right; font-weight: 600;">${props.startDate}</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: 600;">${escapeHtml(props.startDate)}</td>
               </tr>
             </table>
           </div>

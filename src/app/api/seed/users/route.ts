@@ -2,10 +2,13 @@ import { db } from '@/lib/db'
 import { hashPassword } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 
-const SEED_SECRET = process.env.SEED_SECRET || 'pitchbook-seed-2025'
+const SEED_SECRET = process.env.SEED_SECRET
 
 export async function GET(request: Request) {
   try {
+    if (!process.env.SEED_SECRET) {
+      return NextResponse.json({ error: 'Seed endpoint is disabled' }, { status: 404 })
+    }
     const { searchParams } = new URL(request.url)
     const secret = searchParams.get('secret')
     if (secret !== SEED_SECRET) {

@@ -22,6 +22,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'courtId, date, startTime, endTime are required' }, { status: 400 })
     }
 
+    if (typeof totalPrice !== 'number' || totalPrice <= 0) {
+      return NextResponse.json({ error: 'Total price must be a positive number' }, { status: 400 })
+    }
+
     // Verify the court belongs to a venue owned by this owner
     const court = await db.court.findUnique({
       where: { id: courtId },

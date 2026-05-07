@@ -51,6 +51,34 @@ export async function POST(request: NextRequest) {
 
     const { courtId, date, startTime, endTime, notes, memberEmails } = body
 
+    // Validate required fields
+    if (!courtId || !date || !startTime || !endTime) {
+      return NextResponse.json({ error: 'Missing required fields: courtId, date, startTime, endTime' }, { status: 400 })
+    }
+
+    // Validate date format (YYYY-MM-DD)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return NextResponse.json({ error: 'Invalid date format. Use YYYY-MM-DD' }, { status: 400 })
+    }
+
+    // Validate time format (HH:MM)
+    if (!/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime)) {
+      return NextResponse.json({ error: 'Invalid time format. Use HH:MM' }, { status: 400 })
+    }
+
+    // Validate startTime < endTime
+    if (startTime >= endTime) {
+      return NextResponse.json({ error: 'Start time must be before end time' }, { status: 400 })
+    }
+
+    // Validate date is today or in the future
+    const bookingDate = new Date(date + 'T00:00:00')
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    if (bookingDate < today) {
+      return NextResponse.json({ error: 'Booking date must be today or in the future' }, { status: 400 })
+    }
+
     // Verify court exists and get price
     const court = await db.court.findUnique({
       where: { id: courtId },

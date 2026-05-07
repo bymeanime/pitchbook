@@ -59,19 +59,19 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    const allowedFields = ['name', 'description', 'address', 'city', 'phone', 'email', 'website', 'amenities', 'sports', 'images', 'isOpen', 'isFeatured']
+    const updates: any = {}
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        updates[field] = field === 'amenities' || field === 'sports' || field === 'images'
+          ? (typeof body[field] === 'string' ? body[field] : JSON.stringify(body[field]))
+          : body[field]
+      }
+    }
+
     const updated = await db.venue.update({
       where: { id },
-      data: {
-        name: body.name ?? venue.name,
-        description: body.description ?? venue.description,
-        address: body.address ?? venue.address,
-        city: body.city ?? venue.city,
-        phone: body.phone ?? venue.phone,
-        amenities: body.amenities ? JSON.stringify(body.amenities) : venue.amenities,
-        sports: body.sports ? JSON.stringify(body.sports) : venue.sports,
-        isFeatured: body.isFeatured ?? venue.isFeatured,
-        isOpen: body.isOpen ?? venue.isOpen,
-      }
+      data: updates,
     })
 
     return NextResponse.json(updated)

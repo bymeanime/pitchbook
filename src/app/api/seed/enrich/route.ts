@@ -2,10 +2,13 @@ import { db } from '@/lib/db'
 import { NextResponse, NextRequest } from 'next/server'
 
 // Protect enrich route — only works with SEED_SECRET env var
-const SEED_SECRET = process.env.SEED_SECRET || 'pitchbook-seed-2025'
+const SEED_SECRET = process.env.SEED_SECRET
 
 export async function GET(request: NextRequest) {
   try {
+    if (!process.env.SEED_SECRET) {
+      return NextResponse.json({ error: 'Seed endpoint is disabled' }, { status: 404 })
+    }
     // Verify seed secret to prevent unauthorized access
     const secret = request.nextUrl.searchParams.get('secret')
     if (secret !== SEED_SECRET) {

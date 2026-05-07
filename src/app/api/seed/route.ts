@@ -3,10 +3,13 @@ import { hashPassword, createSessionToken } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 
 // Protect seed route — only works with SEED_SECRET env var
-const SEED_SECRET = process.env.SEED_SECRET || 'pitchbook-seed-2025'
+const SEED_SECRET = process.env.SEED_SECRET
 
 export async function GET(request: Request) {
   try {
+    if (!process.env.SEED_SECRET) {
+      return NextResponse.json({ error: 'Seed endpoint is disabled' }, { status: 404 })
+    }
     // Verify seed secret to prevent unauthorized access
     const { searchParams } = new URL(request.url)
     const secret = searchParams.get('secret')
