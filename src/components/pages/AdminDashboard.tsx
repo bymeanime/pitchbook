@@ -192,7 +192,6 @@ function AdminDashboardInner() {
       toast({ title: 'Failed to delete holiday', variant: 'destructive' })
     }
   }
-
   const isAdmin = user?.role === 'admin' && !!token
 
   // Load stats

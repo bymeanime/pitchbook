@@ -217,13 +217,13 @@ export default function AddVenueDialog({ open, onOpenChange, onSuccess }: AddVen
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] !flex !flex-col p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-0 shrink-0">
           <DialogTitle>Add New Venue</DialogTitle>
           <DialogDescription>Fill in the details to list a new venue on PitchBook.</DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6">
           <div className="space-y-5 py-4">
             {/* Basic Info */}
             <div className="space-y-3">

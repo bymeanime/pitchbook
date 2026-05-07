@@ -38,49 +38,25 @@ export default function ProfilePage() {
   const isAuth = !!user && !!token
   const loading = isAuth && !fetched
 
-  useEffect(() => {
+    useEffect(() => {
     if (!isAuth) return
 
     Promise.all([
       fetch('/api/bookings', { headers: { 'Authorization': `Bearer ${token}` } })
         .then(r => r.json()).catch(() => []),
-      fetch('/api/tournaments').then(r => r.json()).catch(() => []),
-    ]).then(async ([bookingsData, tournamentsData]) => {
+      fetch('/api/my-teams', { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(r => r.json()).catch(() => []),
+    ]).then(([bookingsData, teamsData]) => {
       const userBookings = Array.isArray(bookingsData) ? bookingsData : []
       setBookings(userBookings)
 
-      // Find teams this user is captain of
-      const userTeams: TournamentTeam[] = []
-      if (Array.isArray(tournamentsData) && tournamentsData.length > 0) {
-        // Fetch tournament details in parallel with concurrency limit
-        const BATCH_SIZE = 5
-        for (let i = 0; i < tournamentsData.length; i += BATCH_SIZE) {
-          const batch = tournamentsData.slice(i, i + BATCH_SIZE)
-          const teamPromises = batch.map(async (t: any) => {
-            try {
-              const res = await fetch(`/api/tournaments/${t.id}`)
-              if (!res.ok) return []
-              const data = await res.json()
-              if (data.teams) {
-                const myTeams = data.teams.filter((team: any) => team.captainId === user?.id)
-                return myTeams.map((team: any) => ({
-                  id: team.id,
-                  name: team.name,
-                  tournament: { id: t.id, name: t.name, sport: t.sport, status: t.status, startDate: t.startDate }
-                }))
-              }
-            } catch {
-              // Skip failed fetches
-            }
-            return []
-          })
-
-          const results = await Promise.all(teamPromises)
-          for (const teams of results) {
-            userTeams.push(...teams)
-          }
-        }
-      }
+      const userTeams: TournamentTeam[] = (Array.isArray(teamsData) ? teamsData : []).map((team: any) => ({
+        id: team.id,
+        name: team.name,
+        tournament: team.tournament
+          ? { id: team.tournament.id, name: team.tournament.name, sport: team.tournament.sport, status: team.tournament.status, startDate: team.tournament.startDate }
+          : { id: '', name: '', sport: '', status: '', startDate: '' }
+      }))
 
       setTeams(userTeams)
 
