@@ -40,10 +40,11 @@ function timeInRange(time: string, windowStart: string, windowEnd: string): bool
 /**
  * Check if a date string matches a day of week.
  * dayOfWeek: 0=Sunday, 1=Monday, ..., 6=Saturday (ISO/Nepal standard)
- * Uses getUTCDay() at noon Nepal time to avoid Vercel UTC offset issues.
+ * Uses UTC-based calculation to avoid Vercel server timezone issues.
  */
 function isDayOfWeek(dateStr: string, dayOfWeek: number): boolean {
-  // Parse at noon Nepal time (+05:45) to stay safely away from midnight boundaries
+  // Parse date at noon Nepal time to avoid DST/offset boundary issues
+  // Nepal is UTC+5:45, so noon Nepal = 06:15 UTC
   const utcDate = new Date(dateStr + 'T12:00:00+05:45')
   return utcDate.getUTCDay() === dayOfWeek
 }
