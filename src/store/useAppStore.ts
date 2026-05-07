@@ -114,10 +114,24 @@ if (typeof window !== 'undefined') {
     const savedUser = localStorage.getItem('pb_user')
     const savedToken = localStorage.getItem('pb_token')
     if (savedUser && savedToken) {
-      useAppStore.setState({
-        user: JSON.parse(savedUser),
-        token: savedToken,
-      })
+      // Decode JWT to check expiration without verifying signature (client-side check only)
+      try {
+        const payload = JSON.parse(atob(savedToken.split('.')[1]))
+        if (payload.exp && payload.exp * 1000 < Date.now()) {
+          // Token expired — clear stale session
+          localStorage.removeItem('pb_user')
+          localStorage.removeItem('pb_token')
+        } else {
+          useAppStore.setState({
+            user: JSON.parse(savedUser),
+            token: savedToken,
+          })
+        }
+      } catch {
+        // Token not a valid JWT — clear it
+        localStorage.removeItem('pb_user')
+        localStorage.removeItem('pb_token')
+      }
     }
   } catch {
     // Invalid localStorage data — clear it

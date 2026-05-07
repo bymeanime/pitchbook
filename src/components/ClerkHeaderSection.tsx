@@ -1,19 +1,9 @@
 'use client'
 
-import { useUser, UserButton } from '@clerk/nextjs'
+// ClerkHeaderSection — disabled for custom auth.
+// Clerk sync still works in the background (ClerkSyncEffect),
+// but we don't show the Clerk UserButton to avoid dual-auth confusion.
 
-// This component MUST only render on the client (imported with dynamic + ssr: false).
-// It calls Clerk's useUser() and renders UserButton.
 export default function ClerkHeaderSection() {
-  const { isSignedIn } = useUser()
-
-  if (!isSignedIn) return null
-
-  return (
-    <UserButton
-      appearance={{
-        elements: { avatarBox: "w-9 h-9" },
-      }}
-    />
-  )
+  return null
 }

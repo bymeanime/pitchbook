@@ -4,6 +4,7 @@ import { checkRateLimit } from '@/lib/rate-limit'
 import { NextRequest, NextResponse } from 'next/server'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const ALLOWED_ROLES = ['player', 'venue_owner']
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,6 +28,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Name must be between 2 and 100 characters' }, { status: 400 })
     }
 
+    // Validate role — only allow player and venue_owner on self-registration
+    const role = ALLOWED_ROLES.includes(body.role) ? body.role : 'player'
+
     // Rate limit: 5 registrations per minute per IP
     const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
     const rateLimitKey = `register:${ip}`
@@ -45,10 +49,25 @@ export async function POST(request: NextRequest) {
         email,
         password: hashedPassword,
         name,
-        role: 'player', // Always player on self-registration; admin/owner assigned via admin dashboard
+        role,
         phone: body.phone || null,
       }
     })
+
+    // Auto-create subscription for venue owners (free tier with trial)
+    if (role === 'venue_owner') {
+      const trialEndsAt = new Date()
+      trialEndsAt.setDate(trialEndsAt.getDate() + 30) // 30-day trial
+      await db.subscription.create({
+        data: {
+          userId: user.id,
+          tier: 'pro',
+          status: 'trial',
+          trialStartsAt: new Date(),
+          trialEndsAt,
+        }
+      })
+    }
 
     const token = await createSessionToken(user.id, user.role)
 

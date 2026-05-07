@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       user: { id: user.id, email: user.email, name: user.name, role: user.role, phone: user.phone, createdAt: user.createdAt },
-      token
+      token,
     })
   } catch (error) {
     console.error('[Auth] Login error:', error)
