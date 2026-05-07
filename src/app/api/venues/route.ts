@@ -1,7 +1,13 @@
 import { db } from '@/lib/db'
 import { parseSessionToken } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
-import { getEffectiveTier, checkTrialExpiry, TIER_LIMITS } from '@/lib/subscription'
+import { getEffectiveTier, checkTrialExpiry, TIER_LIMITS, type Tier, type SubscriptionStatus } from '@/lib/subscription'
+
+// Explicit allowlist of fields that can be set on venue creation
+const VENUE_ALLOWED_FIELDS = [
+  'name', 'description', 'address', 'city', 'phone', 'email',
+  'website', 'amenities', 'sports', 'images', 'isOpen',
+] as const
 
 export async function GET() {
   try {
@@ -12,12 +18,14 @@ export async function GET() {
         courts: { select: { id: true, name: true, sport: true, pricePerHour: true, isIndoor: true } },
         _count: { select: { reviews: true, tournaments: true } }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      take: 100,
     })
 
     return NextResponse.json(venues)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    console.error('[Venues] GET error:', error)
+    return NextResponse.json({ error: 'Failed to fetch venues' }, { status: 500 })
   }
 }
 
@@ -38,7 +46,7 @@ export async function POST(request: NextRequest) {
       const expired = checkTrialExpiry(subscription.status, subscription.trialEndsAt)
       if (expired) subscription = await db.subscription.update({ where: { id: subscription.id }, data: { status: 'expired' } })
     }
-    const effectiveTier = getEffectiveTier(subscription?.tier as any, subscription?.status as any, subscription?.trialEndsAt)
+    const effectiveTier = getEffectiveTier(subscription?.tier as Tier | null, subscription?.status as SubscriptionStatus | null, subscription?.trialEndsAt)
     const limits = TIER_LIMITS[effectiveTier]
 
     if (limits.maxVenues !== Infinity) {
@@ -50,11 +58,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Destructure courts from body so they are not spread into Prisma create
+    // Destructure courts from body — do NOT spread remaining fields into Prisma
     const { courts: courtsData, ...venueData } = body
 
+    // Use explicit allowlist to prevent mass assignment
+    const safeData: Record<string, unknown> = {}
+    for (const field of VENUE_ALLOWED_FIELDS) {
+      if (venueData[field] !== undefined) {
+        safeData[field] = venueData[field]
+      }
+    }
+
     // Ensure JSON fields are not double-encoded
-    const safeStringify = (val: any): string => {
+    const safeStringify = (val: unknown): string => {
       if (typeof val === 'string') {
         try { return JSON.stringify(JSON.parse(val)) }
         catch { return JSON.stringify([val]) }
@@ -62,15 +78,12 @@ export async function POST(request: NextRequest) {
       return JSON.stringify(val || [])
     }
 
-    const venue = await db.venue.create({
-      data: {
-        ...venueData,
-        ownerId: session.userId,
-        images: safeStringify(venueData.images),
-        amenities: safeStringify(venueData.amenities),
-        sports: safeStringify(venueData.sports),
-      }
-    })
+    safeData.images = safeStringify(safeData.images)
+    safeData.amenities = safeStringify(safeData.amenities)
+    safeData.sports = safeStringify(safeData.sports)
+    safeData.ownerId = session.userId
+
+    const venue = await db.venue.create({ data: safeData as any })
 
     // Create courts if provided
     if (Array.isArray(courtsData) && courtsData.length > 0) {
@@ -89,7 +102,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(venue, { status: 201 })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    console.error('[Venues] POST error:', error)
+    return NextResponse.json({ error: 'Failed to create venue' }, { status: 500 })
   }
 }

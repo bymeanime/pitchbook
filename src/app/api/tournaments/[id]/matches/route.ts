@@ -3,6 +3,8 @@ import { parseSessionToken } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { logAudit } from '@/lib/audit'
 
+const VALID_MATCH_STATUSES = ['scheduled', 'in_progress', 'completed', 'cancelled']
+
 // GET — List all matches for a tournament
 export async function GET(
   request: NextRequest,
@@ -19,8 +21,9 @@ export async function GET(
       orderBy: [{ round: 'asc' }, { matchNumber: 'asc' }]
     })
     return NextResponse.json(matches)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    console.error('[Matches] GET error:', error)
+    return NextResponse.json({ error: 'Failed to fetch matches' }, { status: 500 })
   }
 }
 
@@ -44,12 +47,30 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // ── Input validation ──
+    const round = Number(body.round)
+    if (!Number.isInteger(round) || round < 1) {
+      return NextResponse.json({ error: 'round must be a positive integer' }, { status: 400 })
+    }
+
+    const matchNumber = Number(body.matchNumber)
+    if (!Number.isInteger(matchNumber) || matchNumber < 1) {
+      return NextResponse.json({ error: 'matchNumber must be a positive integer' }, { status: 400 })
+    }
+
+    if (body.scheduledDate && !/^\d{4}-\d{2}-\d{2}$/.test(body.scheduledDate)) {
+      return NextResponse.json({ error: 'scheduledDate must be YYYY-MM-DD format' }, { status: 400 })
+    }
+    if (body.scheduledTime && !/^\d{2}:\d{2}$/.test(body.scheduledTime)) {
+      return NextResponse.json({ error: 'scheduledTime must be HH:MM format' }, { status: 400 })
+    }
+
     const match = await db.tournamentMatch.create({
       data: {
-        round: body.round || 1,
-        matchNumber: body.matchNumber || 1,
-        scheduledDate: body.scheduledDate,
-        scheduledTime: body.scheduledTime,
+        round,
+        matchNumber,
+        scheduledDate: body.scheduledDate || null,
+        scheduledTime: body.scheduledTime || null,
         tournamentId: id,
         teamAId: body.teamAId || null,
         teamBId: body.teamBId || null,
@@ -61,11 +82,12 @@ export async function POST(
       entityType: 'tournament', entityId: id,
       action: 'match_created', actorId: session.userId, actorRole: session.role,
       newValue: { matchId: match.id, round: match.round, matchNumber: match.matchNumber },
-    })
+    }).catch(() => {}) // Audit log is non-critical
 
     return NextResponse.json(match, { status: 201 })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    console.error('[Matches] POST error:', error)
+    return NextResponse.json({ error: 'Failed to create match' }, { status: 500 })
   }
 }
 
@@ -92,19 +114,40 @@ export async function PATCH(
     const { matchId, scoreA, scoreB, status, scheduledDate, scheduledTime } = body
     if (!matchId) return NextResponse.json({ error: 'matchId is required' }, { status: 400 })
 
+    // ── Input validation ──
+    if (scoreA !== undefined && scoreB !== undefined) {
+      if (!Number.isInteger(scoreA) || scoreA < 0) {
+        return NextResponse.json({ error: 'scoreA must be a non-negative integer' }, { status: 400 })
+      }
+      if (!Number.isInteger(scoreB) || scoreB < 0) {
+        return NextResponse.json({ error: 'scoreB must be a non-negative integer' }, { status: 400 })
+      }
+    }
+
+    if (status && !VALID_MATCH_STATUSES.includes(status)) {
+      return NextResponse.json({ error: `Invalid status. Must be one of: ${VALID_MATCH_STATUSES.join(', ')}` }, { status: 400 })
+    }
+
+    if (scheduledDate && !/^\d{4}-\d{2}-\d{2}$/.test(scheduledDate)) {
+      return NextResponse.json({ error: 'scheduledDate must be YYYY-MM-DD format' }, { status: 400 })
+    }
+    if (scheduledTime && !/^\d{2}:\d{2}$/.test(scheduledTime)) {
+      return NextResponse.json({ error: 'scheduledTime must be HH:MM format' }, { status: 400 })
+    }
+
     const existing = await db.tournamentMatch.findFirst({
       where: { id: matchId, tournamentId: id }
     })
     if (!existing) return NextResponse.json({ error: 'Match not found in this tournament' }, { status: 404 })
 
-    const updateData: Record<string, any> = {}
+    const updateData: Record<string, unknown> = {}
     if (scoreA !== undefined) updateData.scoreA = scoreA
     if (scoreB !== undefined) updateData.scoreB = scoreB
     if (status) updateData.status = status
     if (scheduledDate) updateData.scheduledDate = scheduledDate
     if (scheduledTime) updateData.scheduledTime = scheduledTime
 
-    // Auto-complete match if both scores are set
+    // Auto-complete match if both scores are set and no explicit status
     if (scoreA !== undefined && scoreB !== undefined && !status) {
       updateData.status = 'completed'
     }
@@ -119,10 +162,11 @@ export async function PATCH(
       action: 'match_updated', actorId: session.userId, actorRole: session.role,
       oldValue: { scoreA: existing.scoreA, scoreB: existing.scoreB, status: existing.status },
       newValue: updateData,
-    })
+    }).catch(() => {}) // Audit log is non-critical
 
     return NextResponse.json(updated)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    console.error('[Matches] PATCH error:', error)
+    return NextResponse.json({ error: 'Failed to update match' }, { status: 500 })
   }
 }

@@ -34,8 +34,9 @@ export async function GET(request: NextRequest) {
     }))
 
     return NextResponse.json(bookings)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    console.error('[Bookings] GET error:', error)
+    return NextResponse.json({ error: 'Failed to fetch bookings' }, { status: 500 })
   }
 }
 
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
     const session = await parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
-    const { courtId, date, startTime, endTime, notes, memberEmails } = body
+    const { courtId, date, startTime, endTime, notes } = body
 
     // Validate required fields
     if (!courtId || !date || !startTime || !endTime) {
@@ -79,88 +80,96 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Booking date must be today or in the future' }, { status: 400 })
     }
 
-    // Verify court exists and get price
-    const court = await db.court.findUnique({
-      where: { id: courtId },
-      include: { venue: true }
-    })
+    // ── Atomic: verify court + check conflicts + create booking in a transaction ──
+    const result = await db.$transaction(async (tx) => {
+      // Verify court exists and venue is open
+      const court = await tx.court.findUnique({
+        where: { id: courtId },
+        include: { venue: true }
+      })
 
-    if (!court) return NextResponse.json({ error: 'Court not found' }, { status: 404 })
-    if (!court.venue.isOpen) return NextResponse.json({ error: 'Venue is currently closed' }, { status: 400 })
+      if (!court) throw new Error('Court not found')
+      if (!court.venue.isOpen) throw new Error('Venue is currently closed')
 
-    // Check for conflicting bookings
-    const conflicting = await db.booking.findFirst({
-      where: {
+      // Check for conflicting bookings within the transaction
+      const conflicting = await tx.booking.findFirst({
+        where: {
+          courtId,
+          date,
+          status: { in: ['pending', 'confirmed'] },
+          OR: [
+            { startTime: { lt: endTime }, endTime: { gt: startTime } }
+          ]
+        }
+      })
+
+      if (conflicting) throw new Error('This time slot is already booked')
+
+      // Dynamic pricing calculation
+      const priceResult = await calculatePrice({
         courtId,
-        date,
-        status: { in: ['pending', 'confirmed'] },
-        OR: [
-          { startTime: { lt: endTime }, endTime: { gt: startTime } }
-        ]
-      }
-    })
-
-    if (conflicting) {
-      return NextResponse.json({ error: 'This time slot is already booked' }, { status: 409 })
-    }
-
-    // ── Dynamic pricing calculation ──
-    const priceResult = await calculatePrice({
-      courtId,
-      venueId: court.venueId,
-      date,
-      startTime,
-      endTime,
-    })
-
-    const effectivePrice = priceResult.effectivePrice
-    const platformFee = Math.round(effectivePrice * (court.venue.commission / 100))
-    const totalPrice = effectivePrice
-
-    // ── Create booking as PENDING (owner must confirm) ──
-    // No prepayment — default is cash/pay-at-venue
-    const booking = await db.booking.create({
-      data: {
-        courtId,
+        venueId: court.venueId,
         date,
         startTime,
         endTime,
-        totalPrice,
-        effectivePrice,
-        platformFee,
-        notes: notes || null,
-        status: 'pending', // Owner confirmation required
-        isWalkIn: false,
-      }
-    })
+      })
 
-    // Add booker as primary member
-    await db.bookingMember.create({
-      data: {
-        userId: session.userId,
-        bookingId: booking.id,
-        amount: totalPrice,
-        status: 'pending', // Payment pending (pay at venue)
-      }
-    })
+      const effectivePrice = priceResult.effectivePrice
+      const platformFee = Math.round(effectivePrice * (court.venue.commission / 100))
+      const totalPrice = effectivePrice
 
-    // Create payment record — cash/pending (no prepayment in Nepal)
-    await db.payment.create({
-      data: {
-        bookingId: booking.id,
-        amount: totalPrice,
-        method: 'cash',
-        status: 'pending', // Will be marked completed when paid at venue
-      }
+      // Create booking as PENDING (owner must confirm)
+      const booking = await tx.booking.create({
+        data: {
+          courtId,
+          date,
+          startTime,
+          endTime,
+          totalPrice,
+          effectivePrice,
+          platformFee,
+          notes: notes || null,
+          status: 'pending',
+          isWalkIn: false,
+        }
+      })
+
+      // Add booker as primary member
+      await tx.bookingMember.create({
+        data: {
+          userId: session.userId,
+          bookingId: booking.id,
+          amount: totalPrice,
+          status: 'pending',
+        }
+      })
+
+      // Create payment record — cash/pending
+      await tx.payment.create({
+        data: {
+          bookingId: booking.id,
+          amount: totalPrice,
+          method: 'cash',
+          status: 'pending',
+        }
+      })
+
+      return { booking, court, priceResult }
     })
 
     return NextResponse.json({
-      ...booking,
-      court,
-      venue: court.venue,
-      pricing: priceResult,
+      ...result.booking,
+      court: result.court,
+      venue: result.court.venue,
+      pricing: result.priceResult,
     }, { status: 201 })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to create booking'
+    // Return 400 for known validation errors, 500 for unknown
+    const status = ['Court not found', 'Venue is currently closed', 'This time slot is already booked'].includes(message)
+      ? (message.includes('not found') ? 404 : message.includes('booked') ? 409 : 400)
+      : 500
+    console.error('[Bookings] POST error:', error)
+    return NextResponse.json({ error: message }, { status })
   }
 }

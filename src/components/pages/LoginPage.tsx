@@ -93,30 +93,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Demo credentials */}
-          <div className="mt-6 pt-4 border-t">
-            <p className="text-xs text-center text-muted-foreground mb-3">Quick Login (Demo Accounts)</p>
-            <div className="grid grid-cols-1 gap-2">
-              {[
-                { email: 'john.doe@email.com', password: 'player123', label: 'Player', desc: 'John Doe' },
-                { email: 'arena@pitchbook.com', password: 'owner123', label: 'Venue Owner', desc: 'Arena Sports' },
-                { email: 'admin@pitchbook.com', password: 'admin123', label: 'Admin', desc: 'Platform Admin' },
-              ].map(({ email: demoEmail, password: demoPass, label, desc }) => (
-                <Button
-                  key={label}
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-xs h-auto py-2"
-                  onClick={() => { setEmail(demoEmail); setPassword(demoPass) }}
-                >
-                  <span className="font-medium">{label}</span>
-                  <span className="text-muted-foreground ml-1">({desc})</span>
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          <p className="text-xs text-center text-muted-foreground mt-4">
+          <p className="text-xs text-center text-muted-foreground mt-6 pt-4 border-t">
             Don&apos;t have an account?{' '}
             <button className="text-primary font-medium hover:underline" onClick={() => navigate('register')}>
               Sign up

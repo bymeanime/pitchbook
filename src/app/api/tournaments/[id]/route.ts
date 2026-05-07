@@ -3,6 +3,14 @@ import { parseSessionToken } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { logAudit } from '@/lib/audit'
 
+// Valid tournament status transitions
+const ALLOWED_TRANSITIONS: Record<string, string[]> = {
+  registration: ['registration', 'ongoing', 'cancelled'],
+  ongoing: ['ongoing', 'completed'],
+  completed: ['completed'],
+  cancelled: ['cancelled'],
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -30,8 +38,9 @@ export async function GET(
 
     if (!tournament) return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
     return NextResponse.json(tournament)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    console.error('[Tournament] GET error:', error)
+    return NextResponse.json({ error: 'Failed to fetch tournament' }, { status: 500 })
   }
 }
 
@@ -54,6 +63,16 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // ── Status transition validation ──
+    if (body.status && body.status !== tournament.status) {
+      const allowed = ALLOWED_TRANSITIONS[tournament.status]
+      if (!allowed || !allowed.includes(body.status)) {
+        return NextResponse.json({
+          error: `Cannot transition tournament from "${tournament.status}" to "${body.status}". Allowed: ${allowed?.join(', ') || 'none'}`
+        }, { status: 400 })
+      }
+    }
+
     const updated = await db.tournament.update({
       where: { id },
       data: {
@@ -73,11 +92,12 @@ export async function PATCH(
       action: 'updated', actorId: session.userId, actorRole: session.role,
       oldValue: { status: tournament.status, name: tournament.name },
       newValue: { status: body.status, name: body.name },
-    })
+    }).catch(() => {}) // Audit log is non-critical
 
     return NextResponse.json(updated)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    console.error('[Tournament] PATCH error:', error)
+    return NextResponse.json({ error: 'Failed to update tournament' }, { status: 500 })
   }
 }
 
@@ -117,10 +137,11 @@ export async function DELETE(
       action: 'deleted', actorId: session.userId, actorRole: session.role,
       oldValue: { status: tournament.status, name: tournament.name },
       newValue: { status: 'cancelled' },
-    })
+    }).catch(() => {}) // Audit log is non-critical
 
     return NextResponse.json({ message: 'Tournament cancelled', tournament: updated })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    console.error('[Tournament] DELETE error:', error)
+    return NextResponse.json({ error: 'Failed to cancel tournament' }, { status: 500 })
   }
 }

@@ -1,7 +1,13 @@
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import { SignJWT, jwtVerify } from 'jose'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'pitchbook-jwt-secret-2025-change-me'
+const JWT_SECRET = process.env.JWT_SECRET
+if (!JWT_SECRET) {
+  throw new Error(
+    'JWT_SECRET environment variable is required. ' +
+    'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
+  )
+}
 const secretKey = new TextEncoder().encode(JWT_SECRET)
 
 export async function hashPassword(password: string): Promise<string> {

@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { verifyPassword, createSessionToken } from '@/lib/auth'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -9,6 +10,12 @@ export async function POST(request: NextRequest) {
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // Rate limit: 10 login attempts per minute per email
+    const rateLimitKey = `login:${email}`
+    if (!checkRateLimit(rateLimitKey, 10, 60 * 1000)) {
+      return NextResponse.json({ error: 'Too many login attempts. Please try again in a minute.' }, { status: 429 })
     }
 
     const user = await db.user.findUnique({ where: { email } })
@@ -27,7 +34,8 @@ export async function POST(request: NextRequest) {
       user: { id: user.id, email: user.email, name: user.name, role: user.role, phone: user.phone },
       token
     })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Login failed' }, { status: 500 })
+  } catch (error) {
+    console.error('[Auth] Login error:', error)
+    return NextResponse.json({ error: 'Login failed. Please try again.' }, { status: 500 })
   }
 }
