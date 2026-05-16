@@ -5,18 +5,20 @@ import { NextResponse } from 'next/server'
 // Protect seed route — only works with SEED_SECRET env var
 const SEED_SECRET = process.env.SEED_SECRET
 
-export async function GET(request: Request) {
+export async function POST(request: Request) {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'Seed endpoint is disabled in production' }, { status: 404 })
+    }
     if (!process.env.SEED_SECRET) {
       return NextResponse.json({ error: 'Seed endpoint is disabled' }, { status: 404 })
     }
-    // Verify seed secret to prevent unauthorized access
-    const { searchParams } = new URL(request.url)
-    const secret = searchParams.get('secret')
-    if (secret !== SEED_SECRET) {
+    // Verify seed secret from request body (not URL params)
+    const body = await request.json()
+    if (body.secret !== SEED_SECRET) {
       return NextResponse.json({ error: 'Unauthorized — seed endpoint is protected' }, { status: 401 })
     }
-    // Seed admin user
+    // Seed admin user (do NOT overwrite password on update)
     const adminPassword = await hashPassword('admin123')
     const ownerPassword = await hashPassword('owner123')
     const playerPassword = await hashPassword('player123')
@@ -420,7 +422,8 @@ export async function GET(request: Request) {
         reviews: await db.review.count()
       }
     })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Seed failed' }, { status: 500 })
+  } catch (error: unknown) {
+    console.error('[Seed] error:', error)
+    return NextResponse.json({ error: 'Seed failed' }, { status: 500 })
   }
 }

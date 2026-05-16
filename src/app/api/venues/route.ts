@@ -83,22 +83,27 @@ export async function POST(request: NextRequest) {
     safeData.sports = safeStringify(safeData.sports)
     safeData.ownerId = session.userId
 
-    const venue = await db.venue.create({ data: safeData as any })
-
-    // Create courts if provided
+    // Create venue and courts in a single transaction
+    let venue: any
     if (Array.isArray(courtsData) && courtsData.length > 0) {
-      for (const court of courtsData) {
-        await db.court.create({
-          data: {
-            name: court.name,
-            sport: court.sport,
-            surface: court.surface || 'artificial_turf',
-            isIndoor: court.isIndoor || false,
-            pricePerHour: Number(court.pricePerHour) || 0,
-            venueId: venue.id,
-          }
-        })
-      }
+      venue = await db.$transaction(async (tx) => {
+        const v = await tx.venue.create({ data: safeData as any })
+        for (const court of courtsData) {
+          await tx.court.create({
+            data: {
+              name: court.name,
+              sport: court.sport,
+              surface: court.surface || 'artificial_turf',
+              isIndoor: court.isIndoor || false,
+              pricePerHour: Number(court.pricePerHour) || 0,
+              venueId: v.id,
+            }
+          })
+        }
+        return v
+      })
+    } else {
+      venue = await db.venue.create({ data: safeData as any })
     }
 
     return NextResponse.json(venue, { status: 201 })

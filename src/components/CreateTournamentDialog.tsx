@@ -90,7 +90,7 @@ export default function CreateTournamentDialog({ open, onOpenChange, onSuccess }
           // Only show venues owned by the current user
           setVenues(
             list
-              .filter((v: any) => v.ownerId === user?.id)
+              .filter((v: any) => (v.owner?.id || v.ownerId) === user?.id)
               .map((v: any) => ({ id: v.id, name: v.name, city: v.city }))
           )
         })

@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { parseSessionToken } from '@/lib/auth'
 import { calculatePrice } from '@/lib/pricing'
+import { getEffectiveTier, TIER_LIMITS } from '@/lib/subscription'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -80,12 +81,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Start time must be before end time' }, { status: 400 })
     }
 
-    // Validate date is today or in the future
-    const bookingDate = new Date(date + 'T00:00:00')
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    if (bookingDate < today) {
+    // Validate date is today or in the future (Nepal timezone: UTC+5:45)
+    const bookingDate = new Date(date + 'T00:00:00+05:45')
+    const now = new Date()
+    const todayNepal = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kathmandu' }))
+    todayNepal.setHours(0, 0, 0, 0)
+    if (bookingDate < todayNepal) {
       return NextResponse.json({ error: 'Booking date must be today or in the future' }, { status: 400 })
+    }
+
+    // Validate booking duration (min 30 min, max 4 hours)
+    const startMinutes = parseInt(startTime.split(':')[0]) * 60 + parseInt(startTime.split(':')[1])
+    const endMinutes = parseInt(endTime.split(':')[0]) * 60 + parseInt(endTime.split(':')[1])
+    const durationMinutes = endMinutes - startMinutes
+    if (durationMinutes < 30) {
+      return NextResponse.json({ error: 'Minimum booking duration is 30 minutes' }, { status: 400 })
+    }
+    if (durationMinutes > 240) {
+      return NextResponse.json({ error: 'Maximum booking duration is 4 hours' }, { status: 400 })
     }
 
     // ── Atomic: verify court + check conflicts + create booking in a transaction ──
@@ -113,6 +126,46 @@ export async function POST(request: NextRequest) {
 
       if (conflicting) throw new Error('This time slot is already booked')
 
+      // Validate time slot is within venue operating hours
+      const bookingDayOfWeek = new Date(date + 'T12:00:00+05:45').getUTCDay()
+      const activeSlot = await tx.timeSlot.findFirst({
+        where: {
+          courtId,
+          dayOfWeek: bookingDayOfWeek,
+          startTime: { lte: startTime },
+          endTime: { gte: endTime },
+          isActive: true,
+        }
+      })
+      if (!activeSlot) {
+        throw new Error('Selected time is outside venue operating hours')
+      }
+
+      // Check subscription tier for venue owner
+      const ownerSub = await tx.subscription.findUnique({ where: { userId: court.venue.ownerId } })
+      const ownerTier = getEffectiveTier(
+        ownerSub?.tier as any, 
+        ownerSub?.status as any, 
+        ownerSub?.trialEndsAt
+      )
+      const ownerLimits = TIER_LIMITS[ownerTier]
+      if (ownerLimits.maxBookingsPerMonth !== Infinity) {
+        const firstOfMonth = new Date(date + 'T00:00:00+05:45')
+        firstOfMonth.setDate(1)
+        const monthEnd = new Date(firstOfMonth)
+        monthEnd.setMonth(monthEnd.getMonth() + 1)
+        const monthlyCount = await tx.booking.count({
+          where: {
+            court: { venue: { ownerId: court.venue.ownerId } },
+            date: { gte: firstOfMonth.toISOString().split('T')[0], lt: monthEnd.toISOString().split('T')[0] },
+            status: { in: ['pending', 'confirmed', 'completed'] }
+          }
+        })
+        if (monthlyCount >= ownerLimits.maxBookingsPerMonth) {
+          throw new Error('This venue has reached its monthly booking limit. Ask the owner to upgrade their plan.')
+        }
+      }
+
       // Dynamic pricing calculation
       const priceResult = await calculatePrice({
         courtId,
@@ -122,7 +175,9 @@ export async function POST(request: NextRequest) {
         endTime,
       })
 
-      const effectivePrice = priceResult.effectivePrice
+      // Calculate total price: per-hour rate x duration
+      const hours = durationMinutes / 60
+      const effectivePrice = Math.round(priceResult.effectivePrice * hours)
       const platformFee = Math.round(effectivePrice * ((court.venue.commission ?? 8) / 100))
       const totalPrice = effectivePrice
 

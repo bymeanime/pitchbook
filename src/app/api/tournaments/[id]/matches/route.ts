@@ -65,6 +65,27 @@ export async function POST(
       return NextResponse.json({ error: 'scheduledTime must be HH:MM format' }, { status: 400 })
     }
 
+    // Validate teamAId belongs to this tournament
+    let teamAId = body.teamAId || null
+    let teamBId = body.teamBId || null
+    if (teamAId) {
+      const teamA = await db.tournamentTeam.findFirst({ where: { id: teamAId, tournamentId: id } })
+      if (!teamA) return NextResponse.json({ error: 'Team A does not belong to this tournament' }, { status: 400 })
+    }
+    if (teamBId) {
+      const teamB = await db.tournamentTeam.findFirst({ where: { id: teamBId, tournamentId: id } })
+      if (!teamB) return NextResponse.json({ error: 'Team B does not belong to this tournament' }, { status: 400 })
+    }
+    // Validate teamA !== teamB
+    if (teamAId && teamBId && teamAId === teamBId) {
+      return NextResponse.json({ error: 'Team A and Team B cannot be the same' }, { status: 400 })
+    }
+    // Validate courtId belongs to this tournament's venue
+    if (body.courtId) {
+      const court = await db.court.findFirst({ where: { id: body.courtId, venueId: tournament.venueId } })
+      if (!court) return NextResponse.json({ error: 'Court does not belong to this tournament\'s venue' }, { status: 400 })
+    }
+
     const match = await db.tournamentMatch.create({
       data: {
         round,
@@ -72,8 +93,8 @@ export async function POST(
         scheduledDate: body.scheduledDate || null,
         scheduledTime: body.scheduledTime || null,
         tournamentId: id,
-        teamAId: body.teamAId || null,
-        teamBId: body.teamBId || null,
+        teamAId,
+        teamBId,
         courtId: body.courtId || null,
       }
     })

@@ -4,24 +4,26 @@ import { NextResponse } from 'next/server'
 
 const SEED_SECRET = process.env.SEED_SECRET
 
-export async function GET(request: Request) {
+export async function POST(request: Request) {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'Seed endpoint is disabled in production' }, { status: 404 })
+    }
     if (!process.env.SEED_SECRET) {
       return NextResponse.json({ error: 'Seed endpoint is disabled' }, { status: 404 })
     }
-    const { searchParams } = new URL(request.url)
-    const secret = searchParams.get('secret')
-    if (secret !== SEED_SECRET) {
+    const body = await request.json()
+    if (body.secret !== SEED_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const results: { email: string; name: string; role: string }[] = []
 
-    // Create admin
+    // Create admin (do NOT overwrite password on update)
     const adminPassword = await hashPassword('admin123')
     const admin = await db.user.upsert({
       where: { email: 'admin@pitchbook.com' },
-      update: { name: 'Platform Admin', role: 'admin', password: adminPassword, isVerified: true },
+      update: { name: 'Platform Admin', role: 'admin', isVerified: true },
       create: {
         email: 'admin@pitchbook.com',
         password: adminPassword,
@@ -33,7 +35,7 @@ export async function GET(request: Request) {
     })
     results.push({ email: admin.email, name: admin.name, role: admin.role })
 
-    // Create venue owners
+    // Create venue owners (do NOT overwrite password on update)
     const ownerPassword = await hashPassword('owner123')
     const owners = [
       { email: 'arena@pitchbook.com', name: 'Arena Sports Complex', phone: '+977-9801111111' },
@@ -46,7 +48,7 @@ export async function GET(request: Request) {
     for (const owner of owners) {
       const o = await db.user.upsert({
         where: { email: owner.email },
-        update: { name: owner.name, role: 'venue_owner', password: ownerPassword, isVerified: true },
+        update: { name: owner.name, role: 'venue_owner', isVerified: true },
         create: {
           email: owner.email,
           password: ownerPassword,
@@ -59,7 +61,7 @@ export async function GET(request: Request) {
       results.push({ email: o.email, name: o.name, role: o.role })
     }
 
-    // Create some players
+    // Create some players (do NOT overwrite password on update)
     const playerPassword = await hashPassword('player123')
     const playerNames = [
       'Raj Thapa', 'Sita Sharma', 'John Doe', 'Maya Gurung',
@@ -71,7 +73,7 @@ export async function GET(request: Request) {
       const email = name.toLowerCase().replace(/\s+/g, '.') + '@email.com'
       const p = await db.user.upsert({
         where: { email },
-        update: { name, password: playerPassword, isVerified: true },
+        update: { name, isVerified: true },
         create: {
           email,
           password: playerPassword,
@@ -89,7 +91,8 @@ export async function GET(request: Request) {
       details: results,
       totalInDb: await db.user.count(),
     })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Seed failed' }, { status: 500 })
+  } catch (error: unknown) {
+    console.error('[Seed Users] error:', error)
+    return NextResponse.json({ error: 'Seed failed' }, { status: 500 })
   }
 }

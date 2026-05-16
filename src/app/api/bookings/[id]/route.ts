@@ -4,6 +4,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { logAudit, checkRedFlags } from '@/lib/audit'
 import { awardBookingPoints } from '@/lib/points'
 
+// Helper: get fresh user role from DB (prevents stale JWT role after demotion)
+async function getFreshRole(userId: string): Promise<string | null> {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } })
+  return user?.role ?? null
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -35,8 +41,9 @@ export async function GET(
     }
 
     return NextResponse.json(booking)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error: unknown) {
+    console.error('[Bookings] GET error:', error)
+    return NextResponse.json({ error: 'Failed to fetch booking' }, { status: 500 })
   }
 }
 
@@ -68,6 +75,11 @@ export async function PATCH(
     // Only venue owner or admin can confirm
     if (body.status === 'confirmed') {
       if (!isOwner && !isAdmin) {
+        return NextResponse.json({ error: 'Only venue owner or admin can confirm bookings' }, { status: 403 })
+      }
+      // Verify fresh role from DB to prevent stale JWT role after demotion
+      const freshRole = await getFreshRole(session.userId)
+      if (freshRole !== 'venue_owner' && freshRole !== 'admin') {
         return NextResponse.json({ error: 'Only venue owner or admin can confirm bookings' }, { status: 403 })
       }
       if (booking.status !== 'pending') {
@@ -152,10 +164,10 @@ export async function PATCH(
         }
       })
 
-      // Update payment status
+      // Mark payment as voided (cash-at-venue model — money was never collected)
       await db.payment.updateMany({
         where: { bookingId: id },
-        data: { status: 'refunded' }
+        data: { status: 'cancelled' }
       })
 
       await logAudit({
@@ -213,12 +225,18 @@ export async function PATCH(
           select: { userId: true, amount: true }
         })
         for (const member of members) {
-          await awardBookingPoints({
-            userId: member.userId,
-            bookingId: id,
-            amount: member.amount,
-            isWalkIn: false
+          // Check for existing points award to prevent double-award on concurrent requests
+          const existingPoints = await db.pointsTransaction.findFirst({
+            where: { bookingId: id, userId: member.userId, type: 'booking_completed' }
           })
+          if (!existingPoints) {
+            await awardBookingPoints({
+              userId: member.userId,
+              bookingId: id,
+              amount: member.amount,
+              isWalkIn: false
+            })
+          }
         }
       }
 
@@ -240,6 +258,25 @@ export async function PATCH(
         return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
       }
 
+      // Check for conflicts if date/time fields are changed
+      if (date || startTime || endTime) {
+        const checkDate = date || booking.date
+        const checkStart = startTime || booking.startTime
+        const checkEnd = endTime || booking.endTime
+        const conflict = await db.booking.findFirst({
+          where: {
+            courtId: booking.courtId,
+            date: checkDate,
+            status: { in: ['pending', 'confirmed'] },
+            id: { not: id },
+            OR: [{ startTime: { lt: checkEnd }, endTime: { gt: checkStart } }]
+          }
+        })
+        if (conflict) {
+          return NextResponse.json({ error: 'The new time slot conflicts with an existing booking' }, { status: 409 })
+        }
+      }
+
       const updated = await db.booking.update({
         where: { id },
         data: updateData
@@ -256,8 +293,9 @@ export async function PATCH(
     }
 
     return NextResponse.json({ error: 'Invalid status transition' }, { status: 400 })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error: unknown) {
+    console.error('[Bookings] PATCH error:', error)
+    return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 })
   }
 }
 
@@ -284,12 +322,15 @@ export async function DELETE(
     })
     if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
 
-    await db.payment.deleteMany({ where: { bookingId: id } })
-    await db.bookingMember.deleteMany({ where: { bookingId: id } })
-    await db.booking.delete({ where: { id } })
+    await db.$transaction([
+      db.payment.deleteMany({ where: { bookingId: id } }),
+      db.bookingMember.deleteMany({ where: { bookingId: id } }),
+      db.booking.delete({ where: { id } }),
+    ])
 
     return NextResponse.json({ message: 'Booking deleted' })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error: unknown) {
+    console.error('[Bookings] DELETE error:', error)
+    return NextResponse.json({ error: 'Failed to delete booking' }, { status: 500 })
   }
 }

@@ -167,7 +167,7 @@ export default function TournamentsPage() {
                     <Users className="w-3.5 h-3.5 text-primary" />
                     <div>
                       <p className="font-medium">{t._count.teams}/{t.maxTeams} teams</p>
-                      <p className="text-muted-foreground">{t.maxTeams - t._count.teams} spots left</p>
+                      <p className="text-muted-foreground">{Math.max(0, t.maxTeams - t._count.teams)} spots left</p>
                     </div>
                   </div>
                 </div>
@@ -258,7 +258,6 @@ export function TournamentDetailPage() {
   }
 
   if (!selectedTournamentId) {
-    setLoading(false)
     return (
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <Button variant="ghost" className="mb-4 gap-1" onClick={() => navigate('tournaments')}>
@@ -285,7 +284,7 @@ export function TournamentDetailPage() {
     )
   }
 
-  const spotsLeft = tournament.maxTeams - tournament._count.teams
+  const spotsLeft = Math.max(0, tournament.maxTeams - tournament._count.teams)
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

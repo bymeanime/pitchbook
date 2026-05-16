@@ -109,7 +109,6 @@ function AdminDashboardInner() {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [venues, setVenues] = useState<AdminVenue[]>([])
   const [allBookings, setAllBookings] = useState<AdminBooking[]>([])
-  const [loading, setLoading] = useState(true)
   const [loadingCounts, setLoadingCounts] = useState({ stats: 0, users: 0, venues: 0, bookings: 0, holidays: 0 })
   const isLoading = Object.values(loadingCounts).some(v => v > 0)
   const [bookingFilter, setBookingFilter] = useState('')

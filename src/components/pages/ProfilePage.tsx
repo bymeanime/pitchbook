@@ -35,7 +35,6 @@ export default function ProfilePage() {
   const [teams, setTeams] = useState<TournamentTeam[]>([])
   const [stats, setStats] = useState({ totalBookings: 0, totalSpent: 0, tournamentsJoined: 0, reviewsGiven: 0 })
   const [fetched, setFetched] = useState(false)
-  const loading = false
 
     useEffect(() => {
     if (!user || !token) return
@@ -59,14 +58,12 @@ export default function ProfilePage() {
 
       setTeams(userTeams)
 
-      // Count reviews from bookings that have court venue data
-      const reviewsCount = Array.isArray(bookingsData) ? bookingsData.length : 0
-
+      // Note: reviewsGiven is set to 0 until a dedicated reviews count endpoint is available
       setStats({
         totalBookings: userBookings.length,
         totalSpent: userBookings.reduce((sum: number, b: any) => sum + (b.totalPrice || 0), 0),
         tournamentsJoined: userTeams.length,
-        reviewsGiven: reviewsCount
+        reviewsGiven: 0
       })
 
 
@@ -189,6 +186,7 @@ export default function ProfilePage() {
                   key={team.id}
                   className="w-full flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-accent transition-colors text-left"
                   onClick={() => {
+                    if (!team.tournament?.id) return
                     useAppStore.getState().setSelectedTournamentId(team.tournament.id)
                     navigate('tournament-detail')
                   }}

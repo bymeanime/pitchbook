@@ -4,14 +4,16 @@ import { NextResponse, NextRequest } from 'next/server'
 // Protect enrich route — only works with SEED_SECRET env var
 const SEED_SECRET = process.env.SEED_SECRET
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'Seed endpoint is disabled in production' }, { status: 404 })
+    }
     if (!process.env.SEED_SECRET) {
       return NextResponse.json({ error: 'Seed endpoint is disabled' }, { status: 404 })
     }
-    // Verify seed secret to prevent unauthorized access
-    const secret = request.nextUrl.searchParams.get('secret')
-    if (secret !== SEED_SECRET) {
+    const body = await request.json()
+    if (body.secret !== SEED_SECRET) {
       return NextResponse.json({ error: 'Unauthorized — seed endpoint is protected' }, { status: 401 })
     }
     const courts = await db.court.findMany()
@@ -93,7 +95,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ message: 'Demo data enriched!', newBookings, newMatches, totalBookings: await db.booking.count(), totalMatches: await db.tournamentMatch.count() })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error: unknown) {
+    console.error('[Seed Enrich] error:', error)
+    return NextResponse.json({ error: 'Seed enrichment failed' }, { status: 500 })
   }
 }

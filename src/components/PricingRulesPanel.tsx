@@ -54,6 +54,10 @@ interface PricingRule {
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
 
+const isDiscount = (rule: PricingRule): boolean => {
+  return rule.priceMultiplier < 1 && rule.priceMultiplier > 0
+}
+
 interface PricingRulesPanelProps {
   venues: VenueSummary[]
   token: string

@@ -50,7 +50,6 @@ export default function HomePage() {
   const [searchInput, setSearchInput] = useState('')
   const [sportFilter, setSportFilter] = useState('')
   const [tournaments, setTournaments] = useState<any[]>([])
-  const [platformStats, setPlatformStats] = useState<{ venues: number; bookings: number; users: number; tournaments: number } | null>(null)
 
   const safeJsonParse = <T = unknown[]>(str: string | null | undefined, fallback: T = [] as unknown as T): T => {
     if (!str) return fallback
@@ -75,8 +74,10 @@ export default function HomePage() {
         // Compute sport counts from actual venue data
         const sportCounts: Record<string, number> = {}
         venueList.forEach((v: any) => {
-          const sports = JSON.parse(v.sports || '[]')
-          sports.forEach((s: string) => { sportCounts[s] = (sportCounts[s] || 0) + 1 })
+          try {
+            const venueSports = JSON.parse(v.sports || '[]')
+            venueSports.forEach((s: string) => { sportCounts[s] = (sportCounts[s] || 0) + 1 })
+          } catch { /* skip malformed sports data */ }
         })
       })
       .catch(() => toast({ title: 'Failed to load featured venues', variant: 'destructive' }))

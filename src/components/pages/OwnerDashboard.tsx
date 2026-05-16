@@ -150,6 +150,7 @@ function OwnerDashboardInner() {
     confirmed: { color: 'bg-emerald-100 text-emerald-800', icon: CheckCircle },
     completed: { color: 'bg-blue-100 text-blue-800', icon: CheckCircle },
     cancelled: { color: 'bg-red-100 text-red-800', icon: XCircle },
+    rejected: { color: 'bg-orange-100 text-orange-800', icon: XCircle },
   }
 
   const handleToggleVenue = async (venueId: string, isOpen: boolean) => {
@@ -289,7 +290,7 @@ function OwnerDashboardInner() {
                             <Button size="sm" variant="outline" className="h-7 text-xs text-emerald-600" onClick={() => handleUpdateBooking(booking.id, 'confirmed')}>
                               <CheckCircle className="w-3 h-3 mr-1" /> Accept
                             </Button>
-                            <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" onClick={() => handleUpdateBooking(booking.id, 'cancelled')}>
+                            <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" onClick={() => handleUpdateBooking(booking.id, 'rejected')}>
                               <XCircle className="w-3 h-3 mr-1" /> Reject
                             </Button>
                           </div>
