@@ -408,15 +408,10 @@ async function runSeed() {
   }
 }
 
-// ── GET: Auto-seed when database has no venues (no auth required) ──
+// ── GET: Auto-seed (idempotent — uses upsert, never deletes existing data) ──
 export async function GET() {
   try {
-    const venueCount = await db.venue.count()
-    if (venueCount > 0) {
-      return NextResponse.json({ message: 'Database already has venues', venues: venueCount })
-    }
-
-    console.log('[Seed] Auto-seeding: no venues found in database')
+    console.log('[Seed] Auto-seed triggered')
     const stats = await runSeed()
     return NextResponse.json({ message: 'Auto-seeded successfully!', stats })
   } catch (error: unknown) {
