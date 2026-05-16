@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { userId, points, description } = body
 
-    if (!userId || !points || !description) {
+    if (userId === undefined || userId === null || points === undefined || points === null || !description) {
       return NextResponse.json({ error: 'userId, points, and description are required' }, { status: 400 })
     }
 
@@ -40,7 +40,8 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({ message: `Granted ${points} points to ${user.name}`, transaction })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error: unknown) {
+    console.error('[Admin Points]', error)
+    return NextResponse.json({ error: 'Failed to grant points' }, { status: 500 })
   }
 }

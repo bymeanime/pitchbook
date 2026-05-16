@@ -9,19 +9,19 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   const checks: { name: string; ok: boolean; detail?: string }[] = []
 
-  // Check DATABASE_URL
+  // Check DATABASE_URL (never expose the actual value)
   const dbUrl = process.env.DATABASE_URL
   checks.push({
     name: 'DATABASE_URL',
     ok: !!dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://')),
-    detail: dbUrl ? `${dbUrl.substring(0, 30)}...` : 'NOT SET',
+    detail: dbUrl ? 'configured' : 'NOT SET',
   })
 
-  // Check JWT_SECRET
+  // Check JWT_SECRET (never expose length)
   checks.push({
     name: 'JWT_SECRET',
     ok: !!process.env.JWT_SECRET && process.env.JWT_SECRET.length >= 16,
-    detail: process.env.JWT_SECRET ? `set (${process.env.JWT_SECRET.length} chars)` : 'NOT SET',
+    detail: process.env.JWT_SECRET ? 'set' : 'NOT SET',
   })
 
   // Check SEED_SECRET
@@ -47,11 +47,12 @@ export async function GET() {
       ok: true,
       detail: `connected, ${userCount} users`,
     })
-  } catch (err: any) {
+  } catch (error: unknown) {
+    console.error('[Health]', error)
     checks.push({
       name: 'Database',
       ok: false,
-      detail: err?.message || 'connection failed',
+      detail: 'connection failed',
     })
   }
 

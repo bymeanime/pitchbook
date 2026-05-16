@@ -51,9 +51,11 @@ export async function POST(
     return NextResponse.json(result.team, { status: 201 })
   } catch (error: any) {
     const message = error instanceof Error ? error.message : 'Failed to register'
-    const status = ['Tournament not found', 'Registration is not open', 'Tournament is full', 'You already registered a team'].includes(message)
-      ? (message.includes('not found') ? 404 : message.includes('full') ? 409 : 400)
-      : 500
+    let status = 500
+    if (message.includes('not found')) status = 404
+    else if (message.includes('full')) status = 409
+    else if (message.includes('already')) status = 409
+    else if (['Registration is not open', 'Team name must be between 2 and 100 characters'].includes(message)) status = 400
     return NextResponse.json({ error: message }, { status })
   }
 }

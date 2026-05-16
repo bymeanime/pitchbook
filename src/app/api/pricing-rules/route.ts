@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
         validFrom: validFrom || null,
         validUntil: validUntil || null,
         flatPrice: flatPrice !== undefined && flatPrice !== null ? flatPrice : null,
-        priceMultiplier: priceMultiplier || 1.0,
+        priceMultiplier: priceMultiplier ?? 1.0,
         priority: priority || 0,
       }
     })

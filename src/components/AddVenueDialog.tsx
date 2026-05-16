@@ -112,11 +112,14 @@ export default function AddVenueDialog({ open, onOpenChange, onSuccess }: AddVen
   }
 
   const toggleSport = (sport: string) => {
-    setSelectedSports((prev) =>
-      prev.includes(sport) ? prev.filter((s) => s !== sport) : [...prev, sport]
-    )
-    // Remove courts whose sport was unselected
-    setCourts((prev) => prev.filter((c) => sport === '' || selectedSports.includes(c.sport) || c.sport !== sport))
+    setSelectedSports((prev) => {
+      const next = prev.includes(sport) ? prev.filter((s) => s !== sport) : [...prev, sport]
+      // Remove courts whose sport was unselected (use next, not prev)
+      if (!next.includes(sport)) {
+        setCourts((courts) => courts.filter((c) => c.sport !== sport))
+      }
+      return next
+    })
   }
 
   const toggleAmenity = (amenity: string) => {

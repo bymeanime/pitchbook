@@ -87,7 +87,6 @@ export default function MyBookingsPage() {
         body: JSON.stringify({ status: 'cancelled' })
       })
       if (!res.ok) {
-        setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: originalStatus } : b))
         throw new Error('Failed to cancel')
       }
       toast({ title: 'Booking cancelled' })

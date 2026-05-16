@@ -193,6 +193,15 @@ export default function TournamentsPage() {
               </CardContent>
             </Card>
           ))}
+          {tournaments.length === 0 && !loading && (
+            <div className="col-span-full text-center py-16">
+              <Trophy className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+              <h3 className="text-lg font-semibold mb-1">No Tournaments Found</h3>
+              <p className="text-sm text-muted-foreground">
+                {sportFilter ? 'No tournaments for this sport' : 'No tournaments available yet'}
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -246,6 +255,23 @@ export function TournamentDetailPage() {
     } catch (err: any) {
       toast({ title: err.message, variant: 'destructive' })
     }
+  }
+
+  if (!selectedTournamentId) {
+    setLoading(false)
+    return (
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <Button variant="ghost" className="mb-4 gap-1" onClick={() => navigate('tournaments')}>
+          <ChevronRight className="w-4 h-4 rotate-180" /> Back to Tournaments
+        </Button>
+        <div className="text-center py-16">
+          <Trophy className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+          <h2 className="text-lg font-semibold mb-1">No Tournament Selected</h2>
+          <p className="text-sm text-muted-foreground mb-4">Please select a tournament to view details</p>
+          <Button onClick={() => navigate('tournaments')}>Browse Tournaments</Button>
+        </div>
+      </div>
+    )
   }
 
   if (loading || !tournament) {

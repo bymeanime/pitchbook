@@ -10,7 +10,7 @@ export async function GET(
     const venue = await db.venue.findUnique({
       where: { id },
       include: {
-        owner: { select: { id: true, name: true, email: true, phone: true } },
+        owner: { select: { id: true, name: true } },
         courts: {
           include: { timeSlots: true },
           orderBy: { name: 'asc' }
@@ -33,8 +33,9 @@ export async function GET(
     }
 
     return NextResponse.json(venue)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error: unknown) {
+    console.error('[Venues GET]', error)
+    return NextResponse.json({ error: 'Failed to fetch venue' }, { status: 500 })
   }
 }
 
@@ -59,7 +60,10 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const allowedFields = ['name', 'description', 'address', 'city', 'phone', 'email', 'website', 'amenities', 'sports', 'images', 'isOpen', 'isFeatured']
+    const isAdmin = session.role === 'admin'
+    const allowedFields = ['name', 'description', 'address', 'city', 'phone', 'email', 'website', 'amenities', 'sports', 'images', 'isOpen']
+    // Only admins can set isFeatured
+    if (isAdmin) allowedFields.push('isFeatured')
     const updates: any = {}
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
@@ -75,7 +79,8 @@ export async function PUT(
     })
 
     return NextResponse.json(updated)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error: unknown) {
+    console.error('[Venues PUT]', error)
+    return NextResponse.json({ error: 'Failed to update venue' }, { status: 500 })
   }
 }

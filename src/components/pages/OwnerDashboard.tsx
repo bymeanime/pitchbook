@@ -289,7 +289,7 @@ function OwnerDashboardInner() {
                             <Button size="sm" variant="outline" className="h-7 text-xs text-emerald-600" onClick={() => handleUpdateBooking(booking.id, 'confirmed')}>
                               <CheckCircle className="w-3 h-3 mr-1" /> Accept
                             </Button>
-                            <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" onClick={() => handleUpdateBooking(booking.id, 'rejected')}>
+                            <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" onClick={() => handleUpdateBooking(booking.id, 'cancelled')}>
                               <XCircle className="w-3 h-3 mr-1" /> Reject
                             </Button>
                           </div>

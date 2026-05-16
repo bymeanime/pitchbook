@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       })
 
       const effectivePrice = priceResult.effectivePrice
-      const platformFee = Math.round(effectivePrice * (court.venue.commission / 100))
+      const platformFee = Math.round(effectivePrice * ((court.venue.commission ?? 8) / 100))
       const totalPrice = effectivePrice
 
       // Create booking as PENDING (owner must confirm)

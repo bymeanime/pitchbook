@@ -120,9 +120,9 @@ export default function VenuesPage() {
               <SelectItem value="futsal">⚽ Futsal</SelectItem>
               <SelectItem value="basketball">🏀 Basketball</SelectItem>
               <SelectItem value="badminton">🏸 Badminton</SelectItem>
-              <SelectItem value="football">🏈 Football</SelectItem>
+              <SelectItem value="tennis">🎾 Tennis</SelectItem>
               <SelectItem value="cricket">🏏 Cricket</SelectItem>
-              <SelectItem value="table_tennis">🏓 Table Tennis</SelectItem>
+              <SelectItem value="volleyball">🏐 Volleyball</SelectItem>
             </SelectContent>
           </Select>
           <Select value={selectedCity} onValueChange={setSelectedCity}>

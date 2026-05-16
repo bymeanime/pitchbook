@@ -40,15 +40,19 @@ export default function Header() {
   }, [])
 
   useEffect(() => {
-    if (!isLoggedIn || !token) return
+    // Only fetch pending bookings count for players (not owners/admins)
+    if (!isLoggedIn || !token || role !== 'player') return
     fetch('/api/bookings', { headers: { 'Authorization': `Bearer ${token}` } })
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error('Failed')
+        return r.json()
+      })
       .then((data: any[]) => {
         const count = Array.isArray(data) ? data.filter((b: any) => b.status === 'pending').length : 0
         setPendingCount(count)
       })
       .catch(() => setPendingCount(0))
-  }, [isLoggedIn, token])
+  }, [isLoggedIn, token, role])
 
   const navItems = [
     { label: 'Home', page: 'home' as const, icon: Home },

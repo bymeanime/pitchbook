@@ -316,8 +316,31 @@ export default function PricingRulesPanel({ venues, token }: PricingRulesPanelPr
     return `${mult}x (${Math.round((1 - mult) * 100)}% off)`
   }
 
-  const isDiscount = (rule: PricingRule): boolean => {
-    return rule.priceMultiplier < 1
+  // Fix badge display: flat price rules should show "Flat" badge, not "Discount"
+  // Check flat price first before checking multiplier discount
+  const getRuleBadge = (rule: PricingRule) => {
+    if (rule.flatPrice !== null && rule.flatPrice !== undefined) {
+      return (
+        <Badge className="bg-blue-100 text-blue-700 text-[10px]">
+          <DollarSign className="w-3 h-3 mr-0.5" /> Flat
+        </Badge>
+      )
+    }
+    if (rule.priceMultiplier > 1) {
+      return (
+        <Badge className="bg-red-100 text-red-700 text-[10px]">
+          <TrendingUp className="w-3 h-3 mr-0.5" /> Surge
+        </Badge>
+      )
+    }
+    if (isDiscount(rule)) {
+      return (
+        <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">
+          <TrendingDown className="w-3 h-3 mr-0.5" /> Discount
+        </Badge>
+      )
+    }
+    return null
   }
 
   return (
@@ -365,19 +388,7 @@ export default function PricingRulesPanel({ venues, token }: PricingRulesPanelPr
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-sm font-medium truncate">{rule.name || 'Unnamed Rule'}</span>
-                          {isDiscount(rule) ? (
-                            <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">
-                              <TrendingDown className="w-3 h-3 mr-0.5" /> Discount
-                            </Badge>
-                          ) : rule.priceMultiplier > 1 ? (
-                            <Badge className="bg-red-100 text-red-700 text-[10px]">
-                              <TrendingUp className="w-3 h-3 mr-0.5" /> Surge
-                            </Badge>
-                          ) : rule.flatPrice ? (
-                            <Badge className="bg-blue-100 text-blue-700 text-[10px]">
-                              <DollarSign className="w-3 h-3 mr-0.5" /> Flat
-                            </Badge>
-                          ) : null}
+                          {getRuleBadge(rule)}
                           {!rule.isActive && (
                             <Badge variant="secondary" className="text-[10px]">Inactive</Badge>
                           )}

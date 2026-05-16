@@ -67,7 +67,8 @@ export function getEffectiveTier(
     if (new Date(trialEndsAt) > new Date()) {
       return 'pro' // Trial gives pro features
     }
-    // Trial expired — will be caught lazily on next subscription read
+    // Trial expired — downgrade to free immediately
+    return 'free'
   }
 
   if (status === 'expired' || status === 'cancelled') {

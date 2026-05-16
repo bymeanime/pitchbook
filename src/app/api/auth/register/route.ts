@@ -44,30 +44,35 @@ export async function POST(request: NextRequest) {
     }
 
     const hashedPassword = await hashPassword(password)
-    const user = await db.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name,
-        role,
-        phone: body.phone || null,
-      }
-    })
-
-    // Auto-create subscription for venue owners (free tier with trial)
-    if (role === 'venue_owner') {
-      const trialEndsAt = new Date()
-      trialEndsAt.setDate(trialEndsAt.getDate() + 30) // 30-day trial
-      await db.subscription.create({
+    // Create user and subscription in a single transaction
+    const user = await db.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
         data: {
-          userId: user.id,
-          tier: 'pro',
-          status: 'trial',
-          trialStartsAt: new Date(),
-          trialEndsAt,
+          email,
+          password: hashedPassword,
+          name,
+          role,
+          phone: body.phone || null,
         }
       })
-    }
+
+      // Auto-create subscription for venue owners (free tier with trial)
+      if (role === 'venue_owner') {
+        const trialEndsAt = new Date()
+        trialEndsAt.setDate(trialEndsAt.getDate() + 30) // 30-day trial
+        await tx.subscription.create({
+          data: {
+            userId: newUser.id,
+            tier: 'pro',
+            status: 'trial',
+            trialStartsAt: new Date(),
+            trialEndsAt,
+          }
+        })
+      }
+
+      return newUser
+    })
 
     const token = await createSessionToken(user.id, user.role)
 

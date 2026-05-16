@@ -177,8 +177,8 @@ export async function calculatePrice(ctx: PricingContext): Promise<PriceResult> 
     breakdown = `Rs ${effectivePrice} (base price)`
   }
 
-  // Calculate platform fee
-  const commission = court.venue.commission || 8.0
+  // Calculate platform fee (use ?? not || so commission: 0 is respected)
+  const commission = court.venue.commission ?? 8.0
   const platformFee = Math.round(effectivePrice * (commission / 100))
 
   return {
@@ -203,7 +203,7 @@ export async function getPricePreview(ctx: PricingContext) {
     include: { venue: { select: { commission: true } } }
   })
 
-  const commission = court?.venue.commission || 8.0
+  const commission = court?.venue.commission ?? 8.0
   const platformFee = Math.round(result.effectivePrice * (commission / 100))
 
   return {

@@ -16,8 +16,8 @@ export async function GET(request: NextRequest) {
     const entityType = searchParams.get('entityType')
     const entityId = searchParams.get('entityId')
     const actorId = searchParams.get('actorId')
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50')))
 
     const where: Record<string, any> = {}
     if (entityType) where.entityType = entityType
@@ -43,7 +43,8 @@ export async function GET(request: NextRequest) {
         pages: Math.ceil(total / limit)
       }
     })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error: unknown) {
+    console.error('[Audit Logs]', error)
+    return NextResponse.json({ error: 'Failed to fetch audit logs' }, { status: 500 })
   }
 }
