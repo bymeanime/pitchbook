@@ -304,6 +304,13 @@ function AdminDashboardInner() {
       })
       if (!res.ok) throw new Error('Failed to update booking')
       toast({ title: `Booking ${status}` })
+      // Reload bookings from server
+      setLoadingCounts(prev => ({ ...prev, bookings: prev.bookings + 1 }))
+      fetch('/api/admin/bookings', { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(res => res.ok ? res.json() : [])
+        .then(data => setAllBookings(Array.isArray(data) ? data : []))
+        .catch(() => {})
+        .finally(() => setLoadingCounts(prev => ({ ...prev, bookings: prev.bookings - 1 })))
     } catch {
       setAllBookings(prevBookings)
       toast({ title: 'Failed to update booking', variant: 'destructive' })
@@ -322,6 +329,13 @@ function AdminDashboardInner() {
       })
       if (!res.ok) throw new Error('Failed to update role')
       toast({ title: `User role updated to ${newRole}` })
+      // Reload users from server
+      setLoadingCounts(prev => ({ ...prev, users: prev.users + 1 }))
+      fetch('/api/admin/users', { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(res => res.ok ? res.json() : [])
+        .then(data => setUsers(Array.isArray(data) ? data : []))
+        .catch(() => {})
+        .finally(() => setLoadingCounts(prev => ({ ...prev, users: prev.users - 1 })))
     } catch {
       setUsers(prevUsers)
       toast({ title: 'Failed to update role', variant: 'destructive' })

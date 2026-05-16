@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const session = await parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
-    // Get user's bookings
+    // Get user's bookings (deduplicated by booking ID)
     const members = await db.bookingMember.findMany({
       where: { userId: session.userId },
       include: {
@@ -27,11 +27,19 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' }
     })
 
-    const bookings = members.map(m => ({
-      ...m.booking,
-      userStatus: m.status,
-      userAmount: m.amount
-    }))
+    // Deduplicate: if user is member of same booking multiple times, only show once
+    const seen = new Set<string>()
+    const bookings = members
+      .filter(m => {
+        if (seen.has(m.bookingId)) return false
+        seen.add(m.bookingId)
+        return true
+      })
+      .map(m => ({
+        ...m.booking,
+        userStatus: m.status,
+        userAmount: m.amount
+      }))
 
     return NextResponse.json(bookings)
   } catch (error) {

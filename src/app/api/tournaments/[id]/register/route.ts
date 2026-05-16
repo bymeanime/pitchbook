@@ -15,6 +15,12 @@ export async function POST(
     const session = await parseSessionToken(token)
     if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
 
+    // Validate team name
+    const teamName = body.teamName
+    if (!teamName || typeof teamName !== 'string' || teamName.trim().length < 2 || teamName.trim().length > 100) {
+      return NextResponse.json({ error: 'Team name must be between 2 and 100 characters' }, { status: 400 })
+    }
+
     const result = await db.$transaction(async (tx) => {
       const tournament = await tx.tournament.findUnique({
         where: { id },
@@ -33,7 +39,7 @@ export async function POST(
 
       const team = await tx.tournamentTeam.create({
         data: {
-          name: body.teamName,
+          name: teamName.trim(),
           captainId: session.userId,
           tournamentId: id
         }
@@ -44,6 +50,10 @@ export async function POST(
 
     return NextResponse.json(result.team, { status: 201 })
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Failed to register'
+    const status = ['Tournament not found', 'Registration is not open', 'Tournament is full', 'You already registered a team'].includes(message)
+      ? (message.includes('not found') ? 404 : message.includes('full') ? 409 : 400)
+      : 500
+    return NextResponse.json({ error: message }, { status })
   }
 }

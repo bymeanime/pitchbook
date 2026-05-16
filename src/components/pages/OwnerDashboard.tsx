@@ -124,6 +124,19 @@ function OwnerDashboardInner() {
     )
   }
 
+  // ── Guard: loading ──
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="animate-pulse grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-28 bg-muted rounded-xl" />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   // ── Derived data ──
   const safeBookings = Array.isArray(bookings) ? bookings : []
   const filteredBookings = bookingFilter && bookingFilter !== 'all' ? safeBookings.filter(b => b.status === bookingFilter) : safeBookings
@@ -167,6 +180,8 @@ function OwnerDashboardInner() {
       })
       if (!res.ok) throw new Error('Failed')
       toast({ title: `Booking ${status}` })
+      // Reload data from server to get fresh state
+      loadData()
     } catch {
       setBookings(prevBookings)
       toast({ title: 'Failed to update', variant: 'destructive' })

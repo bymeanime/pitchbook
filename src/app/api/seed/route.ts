@@ -157,11 +157,13 @@ export async function GET(request: Request) {
 
     const venueRecords: any[] = []
     for (const venue of venueData) {
-      const v = await db.venue.upsert({
-        where: { id: (await db.venue.findFirst({ where: { name: venue.name } }))?.id || 'none' },
-        update: {},
-        create: venue
-      })
+      const existing = await db.venue.findFirst({ where: { name: venue.name } })
+      let v: any
+      if (existing) {
+        v = existing
+      } else {
+        v = await db.venue.create({ data: venue })
+      }
       venueRecords.push(v)
     }
 
